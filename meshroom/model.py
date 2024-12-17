@@ -54,7 +54,7 @@ class Product(Model):
     description: str = ""
     vendor: str = ""
     tags: set[str] = set()
-    config: list["ProductSetting"] = []
+    settings: list["ProductSetting"] = []
     consumes: dict[str, list[Consumer]] = {}
     produces: dict[str, list[Producer]] = {}
 
@@ -296,12 +296,12 @@ class Integration(Model):
     mode: Mode = "push"
     format: str | None = None
     documentation_url: str = ""
-    config: dict[str, str | int | float | bool] = {}
+    settings: dict[str, str | int | float | bool] = {}
 
     def save(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with open(self.path.with_suffix(".yml"), "w") as f:
-            yaml.safe_dump(self.model_dump(include=("config")), f)
+            yaml.safe_dump(self.model_dump(), f)
         return self
 
     @staticmethod
@@ -432,7 +432,7 @@ class Tenant(Model):
 
     name: str
     product: str
-    config: dict = {}
+    settings: dict = {}
 
     @staticmethod
     def load(path: Path):
@@ -458,8 +458,8 @@ class Tenant(Model):
             yaml.safe_dump(self.model_dump(), f)
         return self
 
-    def get_config_schema(self):
-        return get_product(self.product).config
+    def get_settings_schema(self):
+        return get_product(self.product).settings
 
     @property
     def plugs(self):

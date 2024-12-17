@@ -187,8 +187,8 @@ def add(
     """Add a new Tenant for a given Product"""
     try:
         tenant = model.create_tenant(product, name)
-        for setting in tenant.get_config_schema():
-            tenant.config[setting.name] = click.prompt(
+        for setting in tenant.get_settings_schema():
+            tenant.settings[setting.name] = click.prompt(
                 f"{setting.name}",
                 default=setting.default,
                 hide_input=setting.secret,

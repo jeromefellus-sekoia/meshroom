@@ -33,7 +33,7 @@ def pull_automation_library(path: Path):
             if description := manifest_data.get("description"):
                 product.description = description
 
-            product.config = parse_product_settings(manifest_data.get("configuration"))
+            product.settings = parse_module_configuration(manifest_data.get("configuration"))
 
             for fmt in ("svg", "png", "jpg"):
                 if (module / f"logo.{fmt}").is_file():
@@ -47,7 +47,7 @@ def pull_automation_library(path: Path):
         cp_rf(module, integration_path)
 
 
-def parse_product_settings(configuration: dict | None = None):
+def parse_module_configuration(configuration: dict | None = None):
     """Convert an automation module configuration JSON schema to a list of ProductSetting objects"""
     out = []
     if not configuration:
@@ -77,8 +77,8 @@ def parse_product_settings(configuration: dict | None = None):
                     default=v.get("default"),
                     required=is_required or v.get("required", False),
                     secret=is_secret or v.get("secret", False),
-                    items=parse_product_settings(v.get("items", {})) or [],
-                    properties=parse_product_settings({"name": k, **v}) if v.get("type") == "object" else [],
+                    items=parse_module_configuration(v.get("items", {})) or [],
+                    properties=parse_module_configuration({"name": k, **v}) if v.get("type") == "object" else [],
                 )
             )
         except ValueError:
@@ -165,7 +165,7 @@ def pull_intake_formats(path: Path):
         # Create the Sekoia end of the integration
         i.mode = mode
         i.documentation_url = f"https://docs.sekoia.io/operation_center/integration_catalog/uuid/{uuid}"
-        i.config["intake_format_uuid"] = uuid
+        i.settings["intake_format_uuid"] = uuid
 
         if mode == "pull":
             # Setting up a pull integration involves setting up the automation connector
@@ -191,7 +191,7 @@ def pull_intake_formats(path: Path):
 
 def step_create_intake_key(integration: Integration, plug: Plug):
     if not plug.get_secret("intake_key"):
-        intake_format_uuid = integration.config["intake_format_uuid"]
+        intake_format_uuid = integration.settings["intake_format_uuid"]
         intake_name = integration.target_product
         intake_key = create_intake_key(intake_format_uuid, intake_name)
         plug.set_secret("intake_key", intake_key)
