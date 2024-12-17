@@ -1,6 +1,6 @@
 name: sekoia
 tags: []
-config:
+settings:
   - name: API_KEY
     secret: true
   - name: API_URL

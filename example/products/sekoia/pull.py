@@ -1,4 +1,3 @@
-from ast import In
 import json
 import logging
 from pathlib import Path
@@ -100,7 +99,6 @@ def get_automation_module(path: Path, uuid: str):
 
 def pull_intake_formats(path: Path):
     """Pull intake formats from Sekoia's public intakes repo"""
-    sekoia = get_product("sekoia")
     path = path / "intake-formats"
     git_pull("https://github.com/SEKOIA-IO/intake-formats.git", path)
 
@@ -159,7 +157,7 @@ def pull_intake_formats(path: Path):
             product.save()
 
         # Copy intake format files to the integration folder
-        i = Integration(product="sekoia", target_product=product_name, topic="events", role="consumer", mode=mode)
+        i = Integration(product="sekoia", target_product=product_name, topic="events", role="consumer", mode=mode, settings={})
         cp_rf(manifest.parent.parent, i.path / "dist" / "intake-format")
 
         # Create the Sekoia end of the integration
@@ -178,7 +176,7 @@ def pull_intake_formats(path: Path):
 
             # Create the 3rd-party setup if it doesn't exist yet
             if not get_integration(product_name, "sekoia", "events", "producer", mode):
-                dst = Integration(product=product_name, target_product="sekoia", topic="events", role="producer", mode=mode)
+                dst = Integration(product=product_name, target_product="sekoia", topic="events", role="producer", mode=mode, settings={})
                 dst.documentation_url = f"https://docs.sekoia.io/operation_center/integration_catalog/uuid/{uuid}/#instructions-on-the-3rd-party-solution"
                 dst.add_setup_step("Follow syslog forwarding instructions", syslog_forwarding_instructions)
                 dst.save()

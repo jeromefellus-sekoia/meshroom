@@ -1,4 +1,3 @@
-from ast import In
 import asyncio
 import logging
 from pathlib import Path
@@ -296,7 +295,7 @@ class Integration(Model):
     mode: Mode = "push"
     format: str | None = None
     documentation_url: str = ""
-    settings: dict[str, str | int | float | bool] = {}
+    settings: dict[str, str] = {}
 
     def save(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)
