@@ -1,0 +1,40 @@
+.dropdown-menu {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0;
+    border:none;
+    border:1px solid #cbcfe1;
+    position: relative;
+
+    .item {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        padding: 4px 12px;
+        cursor: pointer;
+        &:hover {
+            background:#f1f2f9;
+        }
+    }
+
+    > input {
+        border-radius: 8px;
+        outline: none;
+        border: 1px solid #6d6e9caa;
+        padding: 1px 4px;
+    }
+}
+
+button.btn-dropdown {
+    background: white;
+    border:1px solid #cbcfe1;
+    color:#21225f;
+    font-weight: 400;
+    &:hover {
+        background: #f1f2f9;
+        > span {
+            transform: none;
+        }
+    }
+}

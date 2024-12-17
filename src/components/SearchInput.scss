@@ -1,0 +1,41 @@
+.search-input {
+    display: flex;
+    align-items: center;
+    height: 44px;
+    z-index: 3;
+    border: 1px solid #6D6E9C44;
+    box-shadow: 0 2px 144px 1px #6D6E9C15;
+    background: #fff;
+    flex:1;
+    border-radius: 24px;
+    margin: 0 auto;
+    padding: 3px 20px;
+    overflow: hidden;
+    max-height: 44px;
+
+    input:not([type=checkbox]) {
+        background:none;
+        border:none;
+        outline:none;
+        margin: 0px 8px;
+        line-height: 18px;
+        font-size: 110%;
+        flex:1;
+        &::placeholder {
+            color: #6D6E9CA4;
+        }
+    }
+
+    .left, .right {
+        color: #2D2E83;
+    }
+
+    .badge {
+        font-size: 12px;
+        padding: 24px 12px;
+        border-radius: 0px;
+        margin-right: -24px;
+        padding-right: 16px;
+        span { margin-right: -8px;}
+    }
+}

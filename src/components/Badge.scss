@@ -1,0 +1,35 @@
+.badge {
+    display: inline-flex;
+    align-items: center;
+    background: #e4e4f6;
+    text-transform: uppercase;
+    line-height: 0.5;
+    color: white;
+    margin: 4px;
+    border-radius: 4px;
+    padding: 5px 5px;
+    color: #2d2e83;
+    font-weight: 500;
+    .toolbutton {
+        color: #2d2e83;
+        max-width: 28px;
+        max-height: 28px;
+        width: 28px;
+        height: 28px;
+        min-width: 28px;
+        min-height: 28px;
+        flex-shrink:28px;
+        margin: -24px 3px;
+        margin-right: -11px;
+        opacity: 0.5;
+        * {
+            font-size: 16px;
+            opacity: 1;
+        }
+    }
+
+    .removed {
+        margin: -16px 2px;
+        margin-left: -4px;
+    }
+}

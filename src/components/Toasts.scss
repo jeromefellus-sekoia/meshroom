@@ -1,0 +1,38 @@
+#toasts {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: fixed;
+    bottom: 12px;
+    width:100%;
+    user-select: none;
+    pointer-events: none;
+    max-height: 30vh;
+    overflow-y: hidden;
+
+    > * {
+        min-width: 300px;
+        max-width: 90vw;
+        background: #98e398;
+        color:rgb(0, 77, 0);
+        padding: 12px;
+        border-radius: 4px;
+        margin: 6px;
+        display: flex;
+        align-items: center;
+        transition: all 125ms ease-in-out;
+        opacity:0;
+        position: relative;
+        > span.material-icons {
+            margin-right: 8px;
+        }
+        &.show {
+            opacity: 1;
+        }
+
+        &.error {
+            background:rgb(233, 69, 69);
+            color:rgb(255, 255, 255);
+        }
+    }
+}

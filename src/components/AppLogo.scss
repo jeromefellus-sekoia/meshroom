@@ -1,0 +1,13 @@
+.app-logo {
+    display: inline-flex;
+    width: 28px;
+    margin: 0px 6px;
+    overflow: hidden;
+    border-radius: 6px;
+    align-items: center;
+    justify-content: center;
+    > img, svg {
+        width: 100%;
+        flex:1;
+    }
+}

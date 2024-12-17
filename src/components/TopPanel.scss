@@ -1,0 +1,26 @@
+.top-panel {
+    display: flex;
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    min-width: 200px;
+    min-height: 64px;
+    flex-direction: row;
+    border-radius: 16px;
+    box-shadow: 2px 2px 8px #0001;
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    transition: all 125ms ease-in-out;
+    align-items: center;
+
+    &:not(.frame) {
+        background:none;
+        border:none;
+        box-shadow: none;
+    }
+
+    button {
+        height: 30px;
+        margin: 4px;
+    }
+}

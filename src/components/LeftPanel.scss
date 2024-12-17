@@ -1,0 +1,130 @@
+.left-panel {
+    display: flex;
+    position: fixed;
+    top: 15vh;
+    min-width: 200px;
+    flex-direction: column;
+    border-radius: 16px;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    box-shadow: 4px 4px 36px #0002;
+    background: linear-gradient(rgb(45 46 131), #0f142a);
+    transition: all 125ms ease-in-out;
+
+    &:hover {
+        #collapseLeftPanel {
+            pointer-events: all;
+            opacity: 1;
+        }
+    }
+
+    >header {
+        display: flex;
+        align-items: center;
+        padding: 28px 12px;
+        flex-direction: column;
+
+        .logo {
+            width: 120px;
+            border-radius: 8px;
+            transition: all 125ms;
+            margin-bottom: 0px;
+        }
+
+    }
+
+    >nav {
+        flex-direction: column;
+        display: flex;
+        align-items: stretch;
+        flex: 1;
+
+        .material-icons {
+            color: #dadeff99;
+            font-size: 34px;
+        }
+    }
+
+
+    #collapseLeftPanel {
+        position: absolute;
+        top: 8px;
+        right: -40px;
+        width: 35px;
+        height: 24px;
+        padding: 0;
+        line-height: 1;
+        background: #2d2e8366;
+        border: 2px solid #e4e4f6;
+        color: #f7f7fc;
+        transform: scale(0.9);
+        pointer-events: none;
+        opacity: 0;
+
+        &:hover {
+            box-shadow: 0px 0px 10px #0001;
+            transform: scale(1);
+
+            * {
+                transform: none;
+            }
+        }
+    }
+
+    &.small {
+        overflow-x: hidden;
+        width: 54px;
+        min-width: 54px;
+        max-width: 54px;
+
+        header {
+            height: 92px;
+        }
+
+        h1 {
+            color: transparent;
+            white-space: nowrap;
+            opacity: 0;
+        }
+
+        h3 {
+            color: transparent;
+            opacity: 0;
+            display: none;
+        }
+
+        #collapseLeftPanel {
+            top: 12px;
+            right: 8px;
+            opacity: 1;
+            border: transparent
+        }
+
+        header {
+            display: none;
+        }
+
+        nav {
+            padding-top: 46px;
+        }
+
+        nav>a {
+            padding: 15px 13px;
+            margin-left: 0px;
+            margin-right: 0px;
+            margin-top: 16px;
+
+            >.icon {
+                margin-right: 64px;
+
+                * {
+                    color: #fffd;
+                }
+            }
+        }
+
+        .avatar {
+            opacity: 0;
+        }
+    }
+}

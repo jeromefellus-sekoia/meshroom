@@ -1,0 +1,7 @@
+{
+    "files.exclude": {
+        ".mypy_cache": true,
+        ".vscode": true,
+        "**/__pycache__": true
+    }
+}

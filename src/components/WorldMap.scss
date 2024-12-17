@@ -1,0 +1,13 @@
+.worldmap {
+    flex:1;
+    height:100%;
+    width:100%;
+    background:none;
+    z-index:0;
+    circle {
+        fill:#f1f1fd;
+    }
+    path {
+        fill:#2d2e8369;
+    }
+}

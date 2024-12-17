@@ -1,0 +1,68 @@
+.g_id_signin {
+    margin: 0px 15px;
+}
+
+
+.avatar {
+    >div {
+        font-size: 18px;
+        font-weight: bold;
+        color:#2D2E83;
+        display: flex;
+        align-items: center;
+
+        img {
+            border-radius: 50%;
+            height: 30px;
+            margin: 0px 6px;
+        }
+
+        i {
+            font-size: .7rem;
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        button {
+            background: none;
+            border: none;
+        }
+    }
+
+    .name {
+        flex: 1;
+        color: white;
+        font-weight: normal;
+        font-size: .8rem;
+    }
+
+    &:not(.authenticated) {
+        position: fixed;
+        z-index: 100;
+        background: #fffd;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        border:none;
+    }
+}
+
+.avatar-icon {
+    background: #ffffff;
+    border-radius: 100%;
+    width: 41px;
+    height: 41px;
+    min-width: 41px;
+    min-height: 41px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #20235d;
+    margin: 11px;
+    margin-left: 0px;
+}

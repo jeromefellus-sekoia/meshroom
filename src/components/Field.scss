@@ -1,0 +1,25 @@
+.field {
+    width: 100%;
+    display: inline-block;
+
+
+    label {
+        display: block;
+        font-weight: 600;
+        min-height: 20px;
+        color:#21225f;
+        margin-bottom: 2px;
+    }
+
+    input {
+        background: #f8f9fc;
+        color: #21225f;
+        font-size: .875rem;
+        line-height: 1.5;
+        outline: none;
+        border-radius: 8px;
+        border: 1px solid #b2b2e4;
+        padding: 6.5px 12px;
+        width:100%;
+    }
+}
