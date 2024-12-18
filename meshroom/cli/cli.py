@@ -41,12 +41,28 @@ def list():
 
 
 @list.command(name="products")
-def list_products():
+@click.option("--wide", "-w", is_flag=True, help="Show more details (consumes, produces, ...)")
+@click.argument("search", required=False)
+def list_products(wide: bool = False, search: str | None = None):
     """List all products"""
+
+    wide_headers = {}
+    if wide:
+        wide_headers = [
+            {"Consumes": lambda x: x.list_capabilities("consumer")},
+            {"Produces": lambda x: x.list_capabilities("producer")},
+        ]
+
     print(
         tabulate(
-            sorted(model.list_products(), key=lambda x: x.name),
-            headers=["Name", "Tags", "Nb integrations", "Tenants"],
+            sorted(model.list_products(search=search), key=lambda x: x.name),
+            headers=[
+                "Name",
+                "Tags",
+                *wide_headers,
+                "Nb integrations",
+                "Tenants",
+            ],
             formatters={
                 Tenant: lambda x: x.name,
             },
@@ -55,11 +71,18 @@ def list_products():
 
 
 @list.command(name="integrations")
-def list_integrations():
+@click.argument("product", required=False)
+@click.argument("target_product", required=False)
+@click.option("--topic", "-t", help="Filter by topic")
+def list_integrations(
+    product: str | None = None,
+    target_product: str | None = None,
+    topic: str | None = None,
+):
     """List all integrations"""
     print(
         tabulate(
-            sorted(model.list_integrations(), key=lambda x: (x.product, x.target_product)),
+            sorted(model.list_integrations(product=product, target_product=target_product, topic=topic), key=lambda x: (x.product, x.target_product)),
             headers=["Product", "Target product", "Topic", "Role", "Mode", "Plugs"],
         )
     )

@@ -2,14 +2,13 @@ from dataclasses import dataclass
 import inspect
 from pathlib import Path
 from typing import Callable, Literal
-from meshroom.model import Integration, Role, Mode, get_product, get_project_dir, get_integration
+from meshroom.model import Integration, Model, Role, Mode, get_product, get_project_dir, get_integration
 
 SetupFunctionType = Literal["setup", "teardown"]
 _setup_functions: list["SetupFunction"] = []
 
 
-@dataclass
-class SetupFunction:
+class SetupFunction(Model):
     product: str
     target_product: str | None
     role: Role
@@ -48,8 +47,34 @@ class SetupFunction:
         _setup_functions.clear()
 
     @staticmethod
-    def add(*args, **kwargs):
-        _setup_functions.append(sf := SetupFunction(*args, **kwargs))
+    def add(
+        product: str,
+        target_product: str | None,
+        role: Role,
+        topic: str,
+        mode: Mode,
+        func: Callable,
+        keep_when_overloaded: bool,
+        order: Literal["first", "last"] | None,
+        title: str | None,
+        type: SetupFunctionType,
+        format: str | None = None,
+    ):
+        _setup_functions.append(
+            sf := SetupFunction(
+                product=product,
+                target_product=target_product,
+                role=role,
+                topic=topic,
+                mode=mode,
+                func=func,
+                keep_when_overloaded=keep_when_overloaded,
+                order=order,
+                title=title,
+                type=type,
+                format=format,
+            )
+        )
         return sf
 
     @staticmethod
@@ -64,6 +89,7 @@ def setup_consumer(
     topic: str,
     title: str | None = None,
     mode: Mode = "push",
+    format: str | None = None,
     keep_when_overloaded: bool = False,
     order: Literal["first", "last"] | None = None,
 ):
@@ -71,10 +97,9 @@ def setup_consumer(
 
     def decorator(func: Callable):
         func_file = Path(inspect.getfile(func))
-        if func_file.parent.parent != get_project_dir() / "products":
-            raise ValueError("consumer() decorator is allowed only in a product's setup.py")
-        product = get_product(func_file.parent.name)
-        SetupFunction.add(product.name, None, "consumer", topic, mode, func, keep_when_overloaded, order, title, "setup")
+        if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
+            raise ValueError("setup_consumer() decorator is allowed only in a product's setup.py")
+        SetupFunction.add(product.name, None, "consumer", topic, mode, func, keep_when_overloaded, order, title, "setup", format)
         return func
 
     return decorator
@@ -84,6 +109,7 @@ def teardown_consumer(
     topic: str,
     title: str | None = None,
     mode: Mode = "push",
+    format: str | None = None,
     keep_when_overloaded: bool = False,
     order: Literal["first", "last"] | None = None,
 ):
@@ -91,10 +117,9 @@ def teardown_consumer(
 
     def decorator(func: Callable):
         func_file = Path(inspect.getfile(func))
-        if func_file.parent.parent != get_project_dir() / "products":
-            raise ValueError("consumer() decorator is allowed only in a product's setup.py")
-        product = get_product(func_file.parent.name)
-        SetupFunction.add(product.name, None, "consumer", topic, mode, func, keep_when_overloaded, order, title, "teardown")
+        if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
+            raise ValueError("teardown_consumer() decorator is allowed only in a product's setup.py")
+        SetupFunction.add(product.name, None, "consumer", topic, mode, func, keep_when_overloaded, order, title, "teardown", format)
         return func
 
     return decorator
@@ -104,6 +129,7 @@ def setup_producer(
     topic: str,
     title: str | None = None,
     mode: Mode = "push",
+    format: str | None = None,
     keep_when_overloaded: bool = False,
     order: Literal["first", "last"] | None = None,
 ):
@@ -111,11 +137,10 @@ def setup_producer(
 
     def decorator(func: Callable):
         func_file = Path(inspect.getfile(func))
-        product = get_product(func_file.parent.name)
-        if func_file.parent.parent != get_project_dir() / "products" or not product:
-            raise ValueError("producer() decorator is allowed only in a product's setup.py")
+        if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
+            raise ValueError("setup_producer() decorator is allowed only in a product's setup.py")
 
-        SetupFunction.add(product.name, None, "producer", topic, mode, func, keep_when_overloaded, order, title, "setup")
+        SetupFunction.add(product.name, None, "producer", topic, mode, func, keep_when_overloaded, order, title, "setup", format)
         return func
 
     return decorator
@@ -125,6 +150,7 @@ def teardown_producer(
     topic: str,
     title: str | None = None,
     mode: Mode = "push",
+    format: str | None = None,
     keep_when_overloaded: bool = False,
     order: Literal["first", "last"] | None = None,
 ):
@@ -132,11 +158,10 @@ def teardown_producer(
 
     def decorator(func: Callable):
         func_file = Path(inspect.getfile(func))
-        product = get_product(func_file.parent.name)
-        if func_file.parent.parent != get_project_dir() / "products" or not product:
-            raise ValueError("producer() decorator is allowed only in a product's setup.py")
+        if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
+            raise ValueError("teardown_producer() decorator is allowed only in a product's setup.py")
 
-        SetupFunction.add(product.name, None, "producer", topic, mode, func, keep_when_overloaded, order, title, "teardown")
+        SetupFunction.add(product.name, None, "producer", topic, mode, func, keep_when_overloaded, order, title, "teardown", format)
         return func
 
     return decorator
@@ -147,6 +172,7 @@ def teardown_producer(
 
 def setup(
     title: str | None = None,
+    format: str | None = None,
     order: Literal["first", "last"] | None = None,
 ):
     """Decorator to declare a function as a setup step for the integration where it resides"""
@@ -157,7 +183,7 @@ def setup(
         if not i:
             raise ValueError("setup() decorator is allowed only in a product's setup.py")
 
-        SetupFunction.add(i.product, i.target_product, i.role, i.topic, i.mode, func, True, order, title, "setup")
+        SetupFunction.add(i.product, i.target_product, i.role, i.topic, i.mode, func, True, order, title, "setup", format)
         return func
 
     return decorator

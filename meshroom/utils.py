@@ -38,6 +38,15 @@ def tabulate(
     headers: Iterable[str] | None = None,
     formatters: dict | None = None,
 ):
+    columns = []
+    for h in headers:
+        if isinstance(h, dict):
+            columns.append(list(h.keys())[0])
+        elif not isinstance(h, str):
+            columns.append(h[0])
+        else:
+            columns.append(h)
+
     def _format(x):
         for t, f in (formatters or {}).items():
             if isinstance(x, t):
@@ -52,15 +61,34 @@ def tabulate(
             return f"{x}"
         return x
 
+    def _field(x, h: str | dict | tuple):
+        if isinstance(h, dict):
+            key = list(h.values())[0]
+        elif not isinstance(h, str):
+            key = h[-1]
+        else:
+            key = h.lower().replace(" ", "_")
+
+        if isinstance(x, BaseModel):
+            if callable(key):
+                return key(x)
+            v = getattr(x, key, None)
+            if callable(v):
+                return v()
+            return v
+        if isinstance(x, dict):
+            return x.get(key)
+        return x
+
     out = []
     for i in data:
         if isinstance(i, BaseModel):
-            out.append([_format(getattr(i, h.lower().replace(" ", "_"), None)) for h in headers] if headers else i.model_dump())
+            out.append([_format(_field(i, h)) for h in headers] if headers else i.model_dump())
         elif isinstance(i, dict):
-            out.append([_format(i.get(h.lower().replace(" ", "_"))) for h in headers] if headers else i)
+            out.append([_format(_field(i, h)) for h in headers] if headers else i)
         else:
             out.append(i)
-    return _tabulate(out, headers=headers or "keys", tablefmt="rounded_outline")
+    return _tabulate(out, headers=columns or "keys", tablefmt="rounded_outline")
 
 
 def git_pull(url: str, path: Path):
@@ -74,9 +102,9 @@ def import_module(path: Path | str):
     path = Path(path)
     if path.is_file():
         spec = importlib.util.spec_from_file_location(path.stem, path)
-        pull = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(pull)
-        return pull
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        return m
     return None
 
 

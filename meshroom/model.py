@@ -8,7 +8,7 @@ import shutil
 
 from meshroom import secrets
 from meshroom.ast import AST
-from meshroom.utils import list_functions_from_module
+from meshroom.utils import import_module, list_functions_from_module
 
 Role = Literal["consumer", "producer", "trigger", "executor"]
 Mode = Literal["push", "pull"]
@@ -40,6 +40,56 @@ class Consumer(Model):
 class Producer(Model):
     format: str | None = None
     mode: Mode = "push"
+
+
+class Capability(Model):
+    """
+    Definition of a Product's generic consumer/producer capability
+    """
+
+    topic: str
+    role: Role
+    mode: Mode = "push"
+    format: str | None = None
+
+    @staticmethod
+    def consumer(topic: str, consumer: Consumer):
+        """Create a consumer capability"""
+        return Capability(topic=topic, role="consumer", mode=consumer.mode, format=consumer.format)
+
+    @staticmethod
+    def producer(topic: str, producer: Producer):
+        """Create a producer capability"""
+        return Capability(topic=topic, role="producer", mode=producer.mode, format=producer.format)
+
+    def __hash__(self):
+        return (self.topic, self.role, self.mode, self.format).__hash__()
+
+    def __eq__(self, value: "Capability"):
+        return self.topic == value.topic and self.role == value.role and self.mode == value.mode and self.format == value.format
+
+    def matches(self, capability: "Capability"):
+        """Check if this capability matches a complementary capability (e.g., consumer/producer)"""
+        return (
+            self.topic == capability.topic
+            and (sorted((self.role, capability.role)) in (["consumer", "producer"], ["executor", "trigger"]))
+            and self.mode == capability.mode
+            and (self.format == capability.format or None in (self.format, capability.format))
+        )
+
+    def __str__(self):
+        x = []
+        if self.mode not in ("push", None):
+            x.append(self.mode)
+        if self.format is not None:
+            x.append(self.format)
+        out = self.topic
+        if x:
+            out += f" ({' '.join(x)})"
+        return out
+
+    def __repr__(self):
+        return str(self)
 
 
 class Product(Model):
@@ -216,31 +266,36 @@ class Product(Model):
             startswith="pull_",
         )
 
-    def list_capabilities(self):
+    def list_capabilities(self, role: Role | None = None, topic: str | None = None):
         """
         List the Product's generic consumer/producer capabilities, either declared:
+        - in definition.yaml's "consumes" and "produces" sections
         - via meshroom.decorators.setup_consumer(...) or meshroom.decorators.setup_producer(...) decorators in setup.py
-        - in definition.yaml's consumes and produces sections
         """
         from meshroom.decorators import SetupFunction
 
-        out = set()
+        out: set[Capability] = set()
 
-        # List consumers from definition.yaml
-        for topic, consumers in self.consumes.items():
-            for consumer in consumers:
-                out.add((topic, "consumer", consumer.mode, consumer.format))
+        # Collect consumers from definition.yaml
+        if role in ("consumer", None):
+            for t, consumers in self.consumes.items():
+                for consumer in consumers:
+                    if not topic or topic == t:
+                        out.add(Capability.consumer(t, consumer))
 
-        # List producers from definition.yaml
-        for topic, producers in self.produces.items():
-            for producer in producers:
-                out.add((topic, "producer", producer.mode, producer.format))
+        # Collect producers from definition.yaml
+        if role in ("producer", None):
+            for t, producers in self.produces.items():
+                for producer in producers:
+                    if not topic or topic == t:
+                        out.add(Capability.producer(t, producer))
 
-        # List setup functions
-        # TODO load SetupFunctions from all py files in the product directory
+        # Collect capabilities declared in decorated setup functions
+        self.import_python_modules()
         for sf in SetupFunction.get_all("setup"):
             if sf.product == self.name and sf.target_product is None:
-                out.add((sf.topic, sf.role, sf.mode, sf.format))
+                if (role is None or sf.role == role) and (topic is None or sf.topic == topic):
+                    out.add(Capability(topic=sf.topic, role=sf.role, mode=sf.mode, format=sf.format))
 
         return list(out)
 
@@ -265,6 +320,13 @@ class Product(Model):
                 print()
         else:
             return print("Nothing to do")
+
+    def import_python_modules(self):
+        """
+        Import the product's python modules to collect all setup functions
+        """
+        for module in self.path.glob("*.py"):
+            import_module(module)
 
 
 class ProductSetting(Model):
@@ -643,14 +705,12 @@ def validate_meshroom_project(path: str | Path):
     path = Path(path)
     if not (path / "products").is_dir():
         return False
-    if not (path / "config").is_dir():
-        return False
     return True
 
 
-def list_products(tags: set[str] | None = None):
+def list_products(tags: set[str] | None = None, search: str | None = None):
     for product_dir in (PROJECT_DIR / "products").iterdir():
-        if product_dir.is_dir():
+        if product_dir.is_dir() and (search is None or search in product_dir.name):
             p = get_product(product_dir.name)
             if tags is None or p.tags & tags:
                 yield p
@@ -743,43 +803,38 @@ def list_integrations(
 ):
     path = PROJECT_DIR / "products"
     for product_dir in path.iterdir() if product is None else [path / product]:
+        if not product_dir.is_dir():
+            continue
+
         # 1) First look for specifically implemented integrations
         if (product_dir / "integrations").is_dir():
             for target_product_dir in (product_dir / "integrations").iterdir() if target_product is None else [product_dir / "integrations" / target_product]:
                 if not target_product_dir.is_dir():
                     continue
+
                 for integration_file in target_product_dir.iterdir():
-                    if integration_file.is_file() and integration_file.suffix == ".yml":
+                    if integration_file.is_file() and integration_file.suffix in (".yml", ".yaml"):
                         i = Integration.load(integration_file)
                         if (not topic or i.topic == topic) and (not role or i.role == role) and (not mode or i.mode == mode):
                             yield i
 
         # 2) Look for matching pairs of generic product capabilities, with lower priority
-        for src_topic, src_role, src_mode, src_format in get_product(product_dir.name).list_capabilities():
+        for a in get_product(product_dir.name).list_capabilities():
             for target_product_dir in path.iterdir() if target_product is None else [path / target_product]:
-                for dst_topic, dst_role, dst_mode, dst_format in get_product(target_product_dir.name).list_capabilities():
-                    # Topic and mode must match
-                    if (src_topic, src_mode) != (dst_topic, dst_mode):
-                        continue
-                    # Role must be complementary
-                    if sorted(src_role, dst_role) not in (["consumer", "producer"], ["trigger", "executor"]):
-                        continue
-                    # Format must match, or one must be None (aka all formats are supported)
-                    if src_format != dst_format and None not in (src_format, dst_format):
-                        continue
-                    # Match filtering arguments
-                    if (role and src_role != role) or (mode and src_mode != mode) or (topic and src_topic != topic):
-                        continue
+                if not target_product_dir.is_dir():
+                    continue
 
-                    # If all conditions match, yield a generic Integration object
-                    yield Integration(
-                        product=product_dir.name,
-                        target_product=target_product_dir.name,
-                        topic=src_topic,
-                        role=src_role,
-                        mode=src_mode,
-                        format=src_format or dst_format,
-                    )
+                for b in get_product(target_product_dir.name).list_capabilities():
+                    if a.matches(b):
+                        # Yield generic Integration objects for matching capabilities
+                        yield Integration(
+                            product=product_dir.name,
+                            target_product=target_product_dir.name,
+                            topic=a.topic,
+                            role=a.role,
+                            mode=a.mode,
+                            format=a.format or b.format,
+                        )
 
 
 def get_integration(product: str, target_product: str, topic: str, role: Role, mode: Mode | None = None):
@@ -796,6 +851,8 @@ def list_plugs(
     mode: Mode | None = None,
 ):
     path = PROJECT_DIR / "config"
+    if not path.is_dir():
+        return
     for product_dir in path.iterdir():
         if (product_dir / "integrations").is_dir():
             for tenant_dir in (product_dir / "integrations").iterdir():
