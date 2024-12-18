@@ -7,3 +7,25 @@ def test_list_integrations():
         Integration(product="myproduct", target_product="otherproduct", topic="stuff", role="consumer", mode="pull", format="json", documentation_url="", settings={}),
         Integration(product="otherproduct", target_product="myproduct", topic="stuff", role="producer", mode="pull", format="json", documentation_url="", settings={}),
     ]
+
+    assert next(list_integrations("myproduct", "otherproduct")) == Integration(
+        product="myproduct",
+        target_product="otherproduct",
+        topic="stuff",
+        role="consumer",
+        mode="pull",
+        format="json",
+        documentation_url="",
+        settings={},
+    )
+
+    assert next(list_integrations("otherproduct", "myproduct")) == Integration(
+        product="otherproduct",
+        target_product="myproduct",
+        topic="stuff",
+        role="producer",
+        mode="pull",
+        format="json",
+        documentation_url="",
+        settings={},
+    )

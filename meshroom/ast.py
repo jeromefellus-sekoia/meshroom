@@ -111,3 +111,9 @@ class Function:
         self.ast.add_import(decorator, exist_ok=True)
 
         return self
+
+
+def adapt_kwargs_to_signature(func: Callable, **kwargs):
+    """Adapt kwargs to a function signature"""
+    sig = inspect.signature(func)
+    return {k: v for k, v in kwargs.items() if k in sig.parameters}

@@ -34,13 +34,13 @@ def init(path: str):
         exit(1)
 
 
-@meshroom.group()
-def list():
+@meshroom.group("list")
+def _list():
     """List products, integrations, tenants and plugs"""
     pass
 
 
-@list.command(name="products")
+@_list.command(name="products")
 @click.option("--wide", "-w", is_flag=True, help="Show more details (consumes, produces, ...)")
 @click.argument("search", required=False)
 def list_products(wide: bool = False, search: str | None = None):
@@ -70,7 +70,7 @@ def list_products(wide: bool = False, search: str | None = None):
     )
 
 
-@list.command(name="integrations")
+@_list.command(name="integrations")
 @click.argument("product", required=False)
 @click.argument("target_product", required=False)
 @click.option("--topic", "-t", help="Filter by topic")
@@ -88,24 +88,35 @@ def list_integrations(
     )
 
 
-@list.command(name="tenants")
-def list_tenants():
+@_list.command(name="tenants")
+@click.argument("search", required=False)
+@click.option("--product", "-p", help="Filter by product")
+def list_tenants(product: str | None = None, search: str | None = None):
     """List all tenants"""
     print(
         tabulate(
-            sorted(model.list_tenants(), key=lambda x: (x.product, x.name)),
+            sorted(model.list_tenants(product=product, search=search), key=lambda x: (x.product, x.name)),
             headers=["Name", "Product", "Plugs"],
         )
     )
 
 
-@list.command(name="plugs")
-def list_plugs():
+@_list.command(name="plugs")
+@click.argument("src_tenant", required=False)
+@click.argument("dst_tenant", required=False)
+@click.option("--topic", "-t", required=False)
+@click.option("--mode", "-m", type=click.Choice(Mode.__args__), required=False)
+def list_plugs(
+    src_tenant: str | None = None,
+    dst_tenant: str | None = None,
+    topic: str | None = None,
+    mode: Mode | None = None,
+):
     """List all plugs"""
     print(
         tabulate(
-            sorted(model.list_plugs(), key=lambda x: (x.src_tenant, x.dst_tenant)),
-            headers=["Src", "Dst", "Topic", "Mode"],
+            sorted(model.list_plugs(src_tenant=src_tenant, dst_tenant=dst_tenant, topic=topic, mode=mode), key=lambda x: (x.src_tenant, x.dst_tenant)),
+            headers=["Src Tenant", "Dst Tenant", "Topic", "Mode", "Format"],
         )
     )
 
@@ -114,7 +125,7 @@ def list_plugs():
 @click.argument("tenant", required=False)
 @click.argument("target_tenant", required=False)
 @click.argument("topic", required=False)
-@click.argument("mode", required=False, type=Mode)
+@click.argument("mode", required=False, type=click.Choice(Mode.__args__))
 def up(
     tenant: str | None = None,
     target_tenant: str | None = None,
@@ -140,16 +151,18 @@ def down(
 @click.argument("src_tenant")
 @click.argument("dst_tenant")
 @click.argument("topic")
-@click.argument("mode", type=click.Choice(Mode.__args__), required=False)
+@click.option("--mode", "-m", type=click.Choice(Mode.__args__), required=False)
+@click.option("--format", "-f", type=str, required=False)
 def plug(
     src_tenant: str,
     dst_tenant: str,
     topic: str,
     mode: Mode | None = None,
+    format: str | None = None,
 ):
     """Connect two products via an existing integration"""
     try:
-        model.plug(src_tenant, dst_tenant, topic, mode)
+        model.plug(src_tenant, dst_tenant, topic, mode, format)
     except ValueError as e:
         click.echo(e)
         exit(1)
@@ -218,6 +231,43 @@ def add(
                 hide_input=setting.secret,
             )
             tenant.save()
+        print("✓ Tenant created")
+
+    except ValueError as e:
+        click.echo(e)
+        exit(1)
+
+
+@meshroom.command()
+@click.argument("tenant")
+def configure(
+    tenant: str,
+):
+    """Reconfigure an existing Tenant"""
+    try:
+        t = model.get_tenant(tenant)
+        t.settings = t.settings or {}
+        for setting in t.get_settings_schema():
+            if setting.secret:
+                title = f"{setting.name} (secret)"
+                if t.get_secret(setting.name):
+                    title = f"{setting.name} (secret, press Enter to keep current value)"
+                t.set_secret(
+                    setting.name,
+                    click.prompt(
+                        title,
+                        default=t.get_secret(setting.name),
+                        show_default=False,
+                        hide_input=True,
+                    ),
+                )
+            else:
+                t.settings[setting.name] = click.prompt(
+                    setting.name,
+                    default=t.settings.get(setting.name) or setting.default,
+                )
+            t.save()
+        print("✓ Tenant configured")
 
     except ValueError as e:
         click.echo(e)
@@ -239,7 +289,7 @@ def remove(
 @click.argument("src_tenant")
 @click.argument("dst_tenant")
 @click.argument("topic")
-@click.option("--mode", type=Mode)
+@click.option("--mode", type=click.Choice(Mode.__args__))
 def unplug(
     src_tenant: str,
     dst_tenant: str,

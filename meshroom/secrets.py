@@ -31,7 +31,7 @@ def read_secrets():
         return {}
 
 
-def write_secrets(secrets: dict):
+def write_secrets(secrets: dict, master_key: str | None = None):
     """Write the GPG-encrypted secrets store, eventually prompting for master key creation"""
     from meshroom.model import get_project_dir
 
@@ -42,13 +42,14 @@ def write_secrets(secrets: dict):
     gpg = gnupg.GPG()
     keys = gpg.list_keys()
     if not any(f"<{gpg_id}>" in key["uids"][0] for key in keys):
-        gpg.gen_key(
+        res = gpg.gen_key(
             gpg.gen_key_input(
                 name_email=gpg_id,
-                comment=f"Meshroom GPG identity for {getuser()}",
-                passphrase=getpass(f"Enter a Master Key for this Meshroom project (will use {gpg_id} GPG identity): "),
+                passphrase=master_key or getpass(f"Enter a Master Key for this Meshroom project (will use {gpg_id} GPG identity): "),
             )
         )
+        if not res:
+            raise ValueError("Failed to generate GPG key")
 
     with open(secrets_path, "wb") as f:
         encrypted_data = gpg.encrypt(json.dumps(secrets), gpg_id, always_trust=True)

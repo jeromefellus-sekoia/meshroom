@@ -1,11 +1,11 @@
-from dataclasses import dataclass
 import inspect
 from pathlib import Path
 from typing import Callable, Literal
+from meshroom.ast import adapt_kwargs_to_signature
 from meshroom.model import Integration, Model, Role, Mode, get_product, get_project_dir, get_integration
 
 SetupFunctionType = Literal["setup", "teardown"]
-_setup_functions: list["SetupFunction"] = []
+_setup_functions: set["SetupFunction"] = set()
 
 
 class SetupFunction(Model):
@@ -18,7 +18,7 @@ class SetupFunction(Model):
     format: str | None = None
     keep_when_overloaded: bool = False
     order: Literal["first", "last"] | None = None
-    title: str | None = None
+    title: str
     type: SetupFunctionType = "setup"
 
     def match(self, integration: Integration):
@@ -46,6 +46,20 @@ class SetupFunction(Model):
     def clear():
         _setup_functions.clear()
 
+    def __hash__(self):
+        return hash((self.product, self.target_product, self.role, self.mode, self.topic, self.title, self.type))
+
+    def __eq__(self: "SetupFunction", other: "SetupFunction"):
+        return (
+            self.product == other.product
+            and self.target_product == other.target_product
+            and self.role == other.role
+            and self.mode == other.mode
+            and self.topic == other.topic
+            and self.title == other.title
+            and self.type == other.type
+        )
+
     @staticmethod
     def add(
         product: str,
@@ -55,12 +69,12 @@ class SetupFunction(Model):
         mode: Mode,
         func: Callable,
         keep_when_overloaded: bool,
-        order: Literal["first", "last"] | None,
-        title: str | None,
-        type: SetupFunctionType,
+        order: Literal["first", "last"] | None = None,
+        title: str | None = None,
+        type: SetupFunctionType = "setup",
         format: str | None = None,
     ):
-        _setup_functions.append(
+        _setup_functions.add(
             sf := SetupFunction(
                 product=product,
                 target_product=target_product,
@@ -70,7 +84,7 @@ class SetupFunction(Model):
                 func=func,
                 keep_when_overloaded=keep_when_overloaded,
                 order=order,
-                title=title,
+                title=title or func.__name__,
                 type=type,
                 format=format,
             )
@@ -80,6 +94,10 @@ class SetupFunction(Model):
     @staticmethod
     def get_all(type: SetupFunctionType | None = None):
         return [sf for sf in _setup_functions if type is None or sf.type == type]
+
+    def call(self, **kwargs):
+        """Call the setup function with the given kwargs, adapted to its signature"""
+        return self.func(**adapt_kwargs_to_signature(self.func, **kwargs))
 
 
 # Product-level setup decorators

@@ -1,7 +1,8 @@
 import asyncio
+import inspect
 import logging
 from pathlib import Path
-from typing import Any, Callable, Literal
+from typing import Any, Callable, Generator, Literal
 from pydantic import BaseModel, ConfigDict
 import yaml
 import shutil
@@ -26,7 +27,6 @@ class Model(BaseModel):
     )
 
     def model_dump(self, *args, **kw):
-        kw["exclude_unset"] = True
         kw["exclude_defaults"] = True
         kw["exclude_none"] = True
         return super().model_dump(*args, **kw)
@@ -266,7 +266,7 @@ class Product(Model):
             startswith="pull_",
         )
 
-    def list_capabilities(self, role: Role | None = None, topic: str | None = None):
+    def list_capabilities(self, role: Role | None = None, topic: str | None = None, format: str | None = None):
         """
         List the Product's generic consumer/producer capabilities, either declared:
         - in definition.yaml's "consumes" and "produces" sections
@@ -280,21 +280,21 @@ class Product(Model):
         if role in ("consumer", None):
             for t, consumers in self.consumes.items():
                 for consumer in consumers:
-                    if not topic or topic == t:
+                    if (not topic or topic == t) and (not format or format == consumer.format or consumer.format is None):
                         out.add(Capability.consumer(t, consumer))
 
         # Collect producers from definition.yaml
         if role in ("producer", None):
             for t, producers in self.produces.items():
                 for producer in producers:
-                    if not topic or topic == t:
+                    if (not topic or topic == t) and (not format or format == producer.format or consumer.format is None):
                         out.add(Capability.producer(t, producer))
 
         # Collect capabilities declared in decorated setup functions
         self.import_python_modules()
         for sf in SetupFunction.get_all("setup"):
             if sf.product == self.name and sf.target_product is None:
-                if (role is None or sf.role == role) and (topic is None or sf.topic == topic):
+                if (role is None or sf.role == role) and (topic is None or sf.topic == topic) and (format is None or sf.format == format or sf.format is None):
                     out.add(Capability(topic=sf.topic, role=sf.role, mode=sf.mode, format=sf.format))
 
         return list(out)
@@ -319,7 +319,7 @@ class Product(Model):
                     logging.error("Pull failed :", exc_info=True)
                 print()
         else:
-            return print("Nothing to do")
+            return print("🚫 Nothing to do")
 
     def import_python_modules(self):
         """
@@ -409,6 +409,15 @@ class Integration(Model):
             fn += f"_{self.mode}"
         return path_in_project(PROJECT_DIR / "products" / self.product / "integrations" / self.target_product / fn)
 
+    def matches(self, integration: "Integration"):
+        """Check if this integration matches a complementary integration (e.g., consumer/producer)"""
+        return (
+            self.topic == integration.topic
+            and (sorted((self.role, integration.role)) in (["consumer", "producer"], ["executor", "trigger"]))
+            and (self.mode == integration.mode or self.mode is None or integration.mode is None)
+            and (self.format == integration.format or self.format is None or integration.format is None)
+        )
+
     def generate(self):
         print("Scaffold integration", self.product, "to", self.target_product, self.topic, self.role, self.mode)
         # TODO: Generate the integration code
@@ -452,19 +461,19 @@ class Integration(Model):
 
     def up(self, plug: "Plug"):
         """Setup the Integration on the source tenant"""
-        print(f"Setup {plug} ({self.role})")
-
+        print(f"Setup {self.role}")
         for i, f in enumerate(self.get_setup_functions("setup")):
-            print(f"{i}) {f.get_title()}")
-            f.func(plug)
+            print(f"{i + 1}) {f.get_title()}")
+            f.call(plug=plug, integration=self)
+        print("✓ done")
 
     def down(self, plug: "Plug"):
         """Tear down the Integration from the source tenant"""
-        print(f"Teardown {plug} ({self.role})")
-
+        print("Teardown", self.role)
         for i, f in enumerate(self.get_setup_functions("teardown")):
-            print(f"{i}) {f.get_title()}")
-            f.func(plug)
+            print(f"{i + 1}) {f.get_title()}")
+            f.call(plug=plug, integration=self)
+        print("✓ done")
 
     def get_setup_functions(self, type: Literal["setup", "teardown"] | None = None):
         """
@@ -473,6 +482,7 @@ class Integration(Model):
         - via meshroom.decorators.setup_consumer(...) or meshroom.decorators.setup_producer(...) decorators at product-level
         """
         from meshroom.decorators import SetupFunction
+        from meshroom.generators import generate_setup_function
 
         # Sort the setup functions by their declared order
         funcs = sorted(sf for sf in SetupFunction.get_all(type) if sf.match(self))
@@ -480,6 +490,10 @@ class Integration(Model):
         # If the integration overloads the setup hooks, keep only the overloaded ones and the ones marked to be kept
         if any(f.target_product for f in funcs):
             funcs = [f for f in funcs if f.target_product or f.keep_when_overloaded]
+
+        # If no setup functions are found, try to generate a SetupFunction from the integration's and product's YAML specs
+        if not funcs and (f := generate_setup_function(self)):
+            funcs.append(f)
 
         return funcs
 
@@ -497,6 +511,8 @@ class Tenant(Model):
 
     @staticmethod
     def load(path: Path):
+        if not path.is_dir():
+            raise ValueError(f"Path {path} is not a plug directory")
         path = path_in_project(path)
         config = {}
         if (path / "config.yaml").is_file():
@@ -504,27 +520,35 @@ class Tenant(Model):
                 config = yaml.safe_load(f)
         config["name"] = path.name
         config["product"] = path.parent.name
-
-        # TODO Process secrets
-
         return Tenant.model_validate(config)
 
     def save(self):
-        path = path_in_project(PROJECT_DIR / "config" / self.product / self.name)
-        path.mkdir(parents=True, exist_ok=True)
-
-        # TODO Process secrets
-
-        with open(path / "config.yaml", "w") as f:
+        self.path.mkdir(parents=True, exist_ok=True)
+        with open(self.path / "config.yaml", "w") as f:
             yaml.safe_dump(self.model_dump(), f)
         return self
 
     def get_settings_schema(self):
         return get_product(self.product).settings
 
+    def set_secret(self, key: str, value: Any):
+        """Store a secret value for this tenant (GPG encrypted)"""
+        return secrets.set_secret(f"{self.product}_{self.name}_{key}", value)
+
+    def get_secret(self, key: str, prompt_if_not_exist: str | bool | None = None):
+        """Retrieve a secret value for this tenant (GPG encrypted)"""
+        if prompt_if_not_exist is True:
+            prompt_if_not_exist = f"Enter secret for {key}"
+
+        return secrets.get_secret(f"{self.product}_{self.name}_{key}", prompt_if_not_exist=prompt_if_not_exist)
+
     @property
     def plugs(self):
         return list(list_plugs(src_tenant=self.name))
+
+    @property
+    def path(self):
+        return path_in_project(PROJECT_DIR / "config" / self.product / self.name)
 
 
 class Plug(Model):
@@ -544,11 +568,15 @@ class Plug(Model):
     dst_tenant: str
     topic: str
     mode: Mode
+    format: str | None = None
     src_config: dict = {}
     dst_config: dict = {}
 
     def __str__(self):
-        return f"{self.src_tenant} --[{self.topic}:{self.mode}]-> {self.dst_tenant}"
+        out = f"{self.src_tenant} --[{self.topic}:{self.mode}]-> {self.dst_tenant}"
+        if self.format:
+            out += f" ({self.format})"
+        return out
 
     @staticmethod
     def load(filepath: Path):
@@ -568,18 +596,32 @@ class Plug(Model):
         return Plug.model_validate(config)
 
     def save(self):
-        fn = f"{self.topic}_{self.mode}" if self.mode == "pull" else self.topic
-        path = path_in_project(PROJECT_DIR / "config" / self.src_tenant / "integrations" / self.dst_tenant / f"{fn}.yaml")
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w") as f:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.path, "w") as f:
             yaml.safe_dump(self.model_dump(), f)
         return self
 
-    def get_secret(self, key: str):
+    def delete(self):
+        self.path.unlink()
+        if not list(self.path.parent.iterdir()):
+            self.path.parent.rmdir()
+        if not list(self.path.parent.parent.iterdir()):
+            self.path.parent.parent.rmdir()
+        print(f"✓ Unplugged {self}")
+
+    @property
+    def path(self):
+        fn = f"{self.topic}_{self.mode}" if self.mode == "pull" else self.topic
+        return path_in_project(PROJECT_DIR / "config" / self.src_tenant / "plugs" / self.dst_tenant / f"{fn}.yaml")
+
+    def get_secret(self, key: str, prompt_if_not_exist: str | bool | None = None):
         """Retrieve a secret value for this plug (GPG encrypted)"""
+        if prompt_if_not_exist is True:
+            prompt_if_not_exist = f"Enter secret for {key}: "
+
         return secrets.get_secret(
             f"{self.src_tenant}_{self.dst_tenant}_{self.topic}_{self.mode}_{key}",
-            prompt_if_not_exist=f"Enter secret for {key}",
+            prompt_if_not_exist=prompt_if_not_exist or False,
         )
 
     def set_secret(self, key: str, value: Any):
@@ -625,7 +667,7 @@ class Plug(Model):
 
     def up(self):
         """Setup the integration on the target Tenants"""
-        print("Up", self.src_tenant, self.dst_tenant, self.topic, self.mode)
+        print("Setup", self)
 
         # Look for a (consumer, producer) pair of integrations
         p = self.get_producer()
@@ -637,7 +679,7 @@ class Plug(Model):
 
     def down(self):
         """Tear down the integration on the target Tenants"""
-        print("down", self.src_tenant, self.dst_tenant, self.topic, self.mode)
+        print("Teardown", self)
 
         # Look for a (consumer, producer) pair of integrations
         p = self.get_producer()
@@ -687,7 +729,7 @@ def init_project(path: str | Path):
 
     if path.is_dir() and list(PROJECT_DIR.iterdir()):
         if validate_meshroom_project(PROJECT_DIR):
-            print("This meshroom project is already initialized")
+            print("🚫 This meshroom project is already initialized")
             return False
         raise ValueError("Directory is not empty and is not a meshroom project")
 
@@ -696,7 +738,7 @@ def init_project(path: str | Path):
     (PROJECT_DIR / "products").mkdir(exist_ok=True)
     (PROJECT_DIR / "config").mkdir(exist_ok=True)
 
-    print(f"Meshroom project initialized at {PROJECT_DIR.absolute()}")
+    print(f"✓ Meshroom project initialized at {PROJECT_DIR.absolute()}")
     return True
 
 
@@ -709,6 +751,11 @@ def validate_meshroom_project(path: str | Path):
 
 
 def list_products(tags: set[str] | None = None, search: str | None = None):
+    """
+    List all products found in the project's products/ directory
+    If :tags is specified, only list products that have all the specified tags
+    If :search is specified, only list products whose name match the search string
+    """
     for product_dir in (PROJECT_DIR / "products").iterdir():
         if product_dir.is_dir() and (search is None or search in product_dir.name):
             p = get_product(product_dir.name)
@@ -716,21 +763,27 @@ def list_products(tags: set[str] | None = None, search: str | None = None):
                 yield p
 
 
-def list_tenants(product: str | None = None):
+def list_tenants(product: str | None = None, search: str | None = None) -> Generator[Tenant, None, None]:
+    """
+    List all tenants found in the project's config/ directory
+    If a product is specified, only list tenants for this product
+    """
     path = PROJECT_DIR / "config"
     if product:
         path = path_in_project(path / product)
         if path.is_dir():
             for tenant_dir in path.iterdir():
-                if tenant_dir.is_dir():
-                    yield get_tenant(tenant_dir.name, product)
+                if tenant_dir.is_dir() and (search is None or search in tenant_dir.name):
+                    yield Tenant.load(tenant_dir)
     else:
-        for product_dir in path.iterdir():
-            if product_dir.is_dir():
-                yield from list_tenants(product_dir.name)
+        if path.is_dir():
+            for product_dir in path.iterdir():
+                if product_dir.is_dir():
+                    yield from list_tenants(product_dir.name, search=search)
 
 
 def get_product(product: str):
+    """Get a product by name"""
     path = path_in_project(PROJECT_DIR / "products" / product)
     if not path.is_dir():
         raise ValueError(f"Product {product} not found")
@@ -739,59 +792,96 @@ def get_product(product: str):
 
 
 def get_tenant(tenant: str, product: str | None = None):
+    """Get a tenant by name"""
     path = path_in_project(PROJECT_DIR / "config")
     if product:
-        return Tenant.load(path / product / tenant)
+        tenant_dir = path / product / tenant
+        if tenant_dir.is_dir():
+            return Tenant.load(tenant_dir)
+    else:
+        for t in list_tenants():
+            if t.name == tenant:
+                return t
+    raise ValueError(f"Tenant {tenant} not found")
 
 
 def create_tenant(product: str, name: str | None = None):
     name = name or product
-    path = path_in_project(PROJECT_DIR / "config" / product / name)
-    if path.exists():
-        raise ValueError(f"Tenant {name} already exists")
+    tenant_dir = path_in_project(PROJECT_DIR / "config" / product / name)
+    if tenant_dir.exists():
+        raise ValueError(f"🚫 Tenant {name} already exists")
 
     if not (PROJECT_DIR / "products" / product).is_dir():
         raise ValueError(f"Product {product} not found")
 
-    path.mkdir(parents=True, exist_ok=True)
+    tenant_dir.mkdir(parents=True, exist_ok=True)
     print(f"Create tenant {name} for product {product}")
-    return Tenant.load(path).save()
+    return Tenant.load(tenant_dir).save()
 
 
 def delete_tenant(tenant: str, product: str | None = None):
     path = PROJECT_DIR / "config"
+    get_tenant(tenant, product)
     if product:
         path = path_in_project(path / product / tenant)
         shutil.rmtree(path)
-        print("Removed", path)
+        print("✓ Removed", path)
     else:
         for product_dir in path.iterdir():
             if path_in_project(product_dir / tenant).is_dir():
                 delete_tenant(tenant, product_dir.name)
 
 
-def plug(src_tenant: str, dst_tenant: str, topic: str, mode: Mode | None = None):
+def plug(src_tenant: str, dst_tenant: str, topic: str, mode: Mode | None = None, format: str | None = None):
+    """
+    Create a new Plug between two Tenants for a given topic
+    """
     mode = mode or "push"
-    fn = topic if mode == "push" else f"{topic}_{mode}"
-    path = path_in_project(PROJECT_DIR / "config" / src_tenant / "integrations" / dst_tenant / f"{fn}.yaml")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if path.is_file():
-        print(f"Plug {src_tenant} --[{topic}:{mode}]-> {dst_tenant}  already exists at {path}")
-        return Plug.load(path)
 
-    if not (list(list_integrations(src_tenant, dst_tenant, topic, mode=mode or "push")) or list(list_integrations(dst_tenant, src_tenant, topic, mode=mode or "push"))):
-        raise ValueError(f"No integration between {dst_tenant} and {src_tenant} for topic {topic} (mode={mode}) is implemented")
+    # Ensure tenants exist
+    src = get_tenant(src_tenant)
+    dst = get_tenant(dst_tenant)
 
-    with open(path, "w") as f:
-        yaml.safe_dump({"mode": mode}, f)
-    return Plug.load(path).save()
+    try:
+        # Check if the plug already exists (whatever the format)
+        plug = get_plug(src_tenant, dst_tenant, topic, mode)
+        print(f"🚫 Plug {plug}  already exists at {plug.path}")
+        return plug
+    except ValueError:
+        producers = list(list_integrations(src.product, dst.product, topic, "producer", mode=mode or "push", format=format))
+        consumers = list(list_integrations(dst.product, src.product, topic, "consumer", mode=mode or "push", format=format))
+        triggers = list(list_integrations(src.product, dst.product, topic, "trigger", mode=mode or "push", format=format))
+        executors = list(list_integrations(dst.product, src.product, topic, "executor", mode=mode or "push", format=format))
+        for producer in producers:
+            for consumer in consumers:
+                if producer.matches(consumer):
+                    plug = Plug(src_tenant=src_tenant, dst_tenant=dst_tenant, topic=topic, mode=mode, format=producer.format or consumer.format or format).save()
+                    print(f"✓ Plugged {plug}")
+                    return plug
+        for trigger in triggers:
+            for executor in executors:
+                if trigger.matches(executor):
+                    plug = Plug(src_tenant=src_tenant, dst_tenant=dst_tenant, topic=topic, mode=mode, format=trigger.format or executor.format or format).save()
+                    print(f"✓ Plugged {plug}")
+                    return plug
+
+        raise ValueError(f"""❌ No integration between {dst_tenant} ({dst.product}) and {src_tenant} ({src.product}) for topic {topic} (mode={mode}) is implemented
+
+    Consumers found: {consumers or 'None'}
+    Producers found: {producers or 'None'}
+
+    You may want to scaffold one via
+
+    meshroom create integration {src.product} {dst.product} {topic} producer {f'--format {format} ' if format else ''}{f'--mode {mode} ' if mode not in (None, 'push') else ''}
+    meshroom create integration {dst.product} {src.product} {topic} consumer {f'--format {format} ' if format else ''}{f'--mode {mode} ' if mode not in (None, 'push') else ''}
+""")
 
 
 def unplug(src_tenant: str, dst_tenant: str, topic: str, mode: Mode | None = None):
-    fn = topic if not mode else f"{topic}_{mode}"
-    path = path_in_project(PROJECT_DIR / "config" / src_tenant / "integrations" / dst_tenant / f"{fn}.yaml")
-    if path.is_file():
-        path.unlink()
+    try:
+        get_plug(src_tenant, dst_tenant, topic, mode).delete()
+    except ValueError:
+        print(f"❌ Plug {src_tenant} --[{topic}:{mode}]-> {dst_tenant} not found")
 
 
 def list_integrations(
@@ -800,6 +890,7 @@ def list_integrations(
     topic: str | None = None,
     role: Role | None = None,
     mode: Mode | None = None,
+    format: str | None = None,
 ):
     path = PROJECT_DIR / "products"
     for product_dir in path.iterdir() if product is None else [path / product]:
@@ -815,16 +906,16 @@ def list_integrations(
                 for integration_file in target_product_dir.iterdir():
                     if integration_file.is_file() and integration_file.suffix in (".yml", ".yaml"):
                         i = Integration.load(integration_file)
-                        if (not topic or i.topic == topic) and (not role or i.role == role) and (not mode or i.mode == mode):
+                        if (not topic or i.topic == topic) and (not role or i.role == role) and (not mode or i.mode == mode) and (not format or i.format == format):
                             yield i
 
         # 2) Look for matching pairs of generic product capabilities, with lower priority
-        for a in get_product(product_dir.name).list_capabilities():
+        for a in get_product(product_dir.name).list_capabilities(role=role, topic=topic, format=format):
             for target_product_dir in path.iterdir() if target_product is None else [path / target_product]:
                 if not target_product_dir.is_dir():
                     continue
 
-                for b in get_product(target_product_dir.name).list_capabilities():
+                for b in get_product(target_product_dir.name).list_capabilities(topic=topic, format=format):
                     if a.matches(b):
                         # Yield generic Integration objects for matching capabilities
                         yield Integration(
@@ -854,8 +945,8 @@ def list_plugs(
     if not path.is_dir():
         return
     for product_dir in path.iterdir():
-        if (product_dir / "integrations").is_dir():
-            for tenant_dir in (product_dir / "integrations").iterdir():
+        if (product_dir / "plugs").is_dir():
+            for tenant_dir in (product_dir / "plugs").iterdir():
                 if tenant_dir.is_dir():
                     for plug_file in tenant_dir.iterdir():
                         if plug_file.is_file():
@@ -887,13 +978,13 @@ def scaffold_integration(
     path = path_in_project(PROJECT_DIR / "products" / product / "integrations" / target_product / fn)
 
     if path.with_suffix(".yml").is_file():
-        print(f"Integration {product} -> {target_product} {topic} {role} {mode} already exists at {path}")
+        print(f"🚫 Integration {product} -> {target_product} {topic} {role} {mode} already exists at {path}")
         return Integration.load(path)
 
     path.parent.mkdir(parents=True, exist_ok=True)
     i = Integration.load(path).generate(**kwargs).save()
 
-    print(f"Integration {product} -> {target_product} {topic} {role} {mode} scaffolded at {path}")
+    print(f"✓ Integration {product} -> {target_product} {topic} {role} {mode} scaffolded at {path}")
 
     return i
 
@@ -901,11 +992,11 @@ def scaffold_integration(
 def scaffold_product(name: str, **kwargs):
     path = path_in_project(PROJECT_DIR / "products" / name)
     if path.is_dir():
-        print(f"Product {name} already exists, see {path}/definition.yaml")
+        print(f"🚫 Product {name} already exists, see {path}/definition.yaml")
         return Product.load(path)
 
     p = create_product(path, **kwargs).generate().save()
-    print(f"Product {name} scaffolded at {path}/definition.yaml")
+    print(f"✓ Product {name} scaffolded at {path}/definition.yaml")
     return p
 
 
