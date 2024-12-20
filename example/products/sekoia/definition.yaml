@@ -3,7 +3,5 @@ tags: []
 settings:
   - name: API_KEY
     secret: true
-  - name: API_URL
-    default: https://api.sekoia.io
   - name: region
     default: FRA1

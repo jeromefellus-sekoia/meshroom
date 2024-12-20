@@ -14,7 +14,7 @@ class SetupFunction(Model):
     role: Role
     topic: str
     func: Callable
-    mode: Mode = "push"
+    mode: Mode | None = None
     format: str | None = None
     keep_when_overloaded: bool = False
     order: Literal["first", "last"] | None = None
@@ -27,7 +27,7 @@ class SetupFunction(Model):
             and self.target_product in (None, integration.target_product)
             and self.role == integration.role
             and self.topic == integration.topic
-            and self.mode == integration.mode
+            and self.mode in (None, integration.mode)
             and self.format in (None, integration.format)
         )
 
@@ -84,7 +84,7 @@ class SetupFunction(Model):
                 func=func,
                 keep_when_overloaded=keep_when_overloaded,
                 order=order,
-                title=title or func.__name__,
+                title=title or inspect.getdoc(func) or func.__name__,
                 type=type,
                 format=format,
             )
@@ -106,12 +106,15 @@ class SetupFunction(Model):
 def setup_consumer(
     topic: str,
     title: str | None = None,
-    mode: Mode = "push",
+    mode: Mode | None = None,
     format: str | None = None,
     keep_when_overloaded: bool = False,
     order: Literal["first", "last"] | None = None,
 ):
-    """Decorator to declare a function as a generic consumer setup step for the product where it resides"""
+    """
+    Decorator to declare a function as a generic consumer setup step for the product where it resides
+    If :title is not set, the function's docstring or name will be used
+    """
 
     def decorator(func: Callable):
         func_file = Path(inspect.getfile(func))
@@ -126,12 +129,15 @@ def setup_consumer(
 def teardown_consumer(
     topic: str,
     title: str | None = None,
-    mode: Mode = "push",
+    mode: Mode | None = None,
     format: str | None = None,
     keep_when_overloaded: bool = False,
     order: Literal["first", "last"] | None = None,
 ):
-    """Decorator to declare a function as a generic consumer setup step for the product where it resides"""
+    """
+    Decorator to declare a function as a generic consumer setup step for the product where it resides
+    If :title is not set, the function's docstring or name will be used
+    """
 
     def decorator(func: Callable):
         func_file = Path(inspect.getfile(func))
@@ -143,15 +149,64 @@ def teardown_consumer(
     return decorator
 
 
-def setup_producer(
+def setup_executor(
     topic: str,
     title: str | None = None,
-    mode: Mode = "push",
+    mode: Mode | None = None,
     format: str | None = None,
     keep_when_overloaded: bool = False,
     order: Literal["first", "last"] | None = None,
 ):
-    """Decorator to declare a function as a generic producer setup step for the product where it resides"""
+    """
+    Decorator to declare a function as a generic executor setup step for the product where it resides
+    If :title is not set, the function's docstring or name will be used
+    """
+
+    def decorator(func: Callable):
+        func_file = Path(inspect.getfile(func))
+        if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
+            raise ValueError("setup_executor() decorator is allowed only in a product's setup.py")
+        SetupFunction.add(product.name, None, "executor", topic, mode, func, keep_when_overloaded, order, title, "setup", format)
+        return func
+
+    return decorator
+
+
+def teardown_executor(
+    topic: str,
+    title: str | None = None,
+    mode: Mode | None = None,
+    format: str | None = None,
+    keep_when_overloaded: bool = False,
+    order: Literal["first", "last"] | None = None,
+):
+    """
+    Decorator to declare a function as a generic executor setup step for the product where it resides
+    If :title is not set, the function's docstring or name will be used
+    """
+
+    def decorator(func: Callable):
+        func_file = Path(inspect.getfile(func))
+        if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
+            raise ValueError("teardown_executor() decorator is allowed only in a product's setup.py")
+        SetupFunction.add(product.name, None, "executor", topic, mode, func, keep_when_overloaded, order, title, "teardown", format)
+        return func
+
+    return decorator
+
+
+def setup_producer(
+    topic: str,
+    title: str | None = None,
+    mode: Mode | None = None,
+    format: str | None = None,
+    keep_when_overloaded: bool = False,
+    order: Literal["first", "last"] | None = None,
+):
+    """
+    Decorator to declare a function as a generic producer setup step for the product where it resides
+    If :title is not set, the function's docstring or name will be used
+    """
 
     def decorator(func: Callable):
         func_file = Path(inspect.getfile(func))
@@ -167,12 +222,15 @@ def setup_producer(
 def teardown_producer(
     topic: str,
     title: str | None = None,
-    mode: Mode = "push",
+    mode: Mode | None = None,
     format: str | None = None,
     keep_when_overloaded: bool = False,
     order: Literal["first", "last"] | None = None,
 ):
-    """Decorator to declare a function as a generic producer setup step for the product where it resides"""
+    """
+    Decorator to declare a function as a generic producer setup step for the product where it resides
+    If :title is not set, the function's docstring or name will be used
+    """
 
     def decorator(func: Callable):
         func_file = Path(inspect.getfile(func))
@@ -180,6 +238,54 @@ def teardown_producer(
             raise ValueError("teardown_producer() decorator is allowed only in a product's setup.py")
 
         SetupFunction.add(product.name, None, "producer", topic, mode, func, keep_when_overloaded, order, title, "teardown", format)
+        return func
+
+    return decorator
+
+
+def setup_trigger(
+    topic: str,
+    title: str | None = None,
+    mode: Mode | None = None,
+    format: str | None = None,
+    keep_when_overloaded: bool = False,
+    order: Literal["first", "last"] | None = None,
+):
+    """
+    Decorator to declare a function as a generic trigger setup step for the product where it resides
+    If :title is not set, the function's docstring or name will be used
+    """
+
+    def decorator(func: Callable):
+        func_file = Path(inspect.getfile(func))
+        if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
+            raise ValueError("setup_trigger() decorator is allowed only in a product's setup.py")
+
+        SetupFunction.add(product.name, None, "trigger", topic, mode, func, keep_when_overloaded, order, title, "setup", format)
+        return func
+
+    return decorator
+
+
+def teardown_trigger(
+    topic: str,
+    title: str | None = None,
+    mode: Mode | None = None,
+    format: str | None = None,
+    keep_when_overloaded: bool = False,
+    order: Literal["first", "last"] | None = None,
+):
+    """
+    Decorator to declare a function as a generic trigger setup step for the product where it resides
+    If :title is not set, the function's docstring or name will be used
+    """
+
+    def decorator(func: Callable):
+        func_file = Path(inspect.getfile(func))
+        if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
+            raise ValueError("teardown_trigger() decorator is allowed only in a product's setup.py")
+
+        SetupFunction.add(product.name, None, "trigger", topic, mode, func, keep_when_overloaded, order, title, "teardown", format)
         return func
 
     return decorator
@@ -193,11 +299,14 @@ def setup(
     format: str | None = None,
     order: Literal["first", "last"] | None = None,
 ):
-    """Decorator to declare a function as a setup step for the integration where it resides"""
+    """
+    Decorator to declare a function as a setup step for the integration where it resides
+    If :title is not set, the function's docstring or name will be used
+    """
 
     def decorator(func: Callable):
         func_file = Path(inspect.getfile(func))
-        i = get_integration(func_file.with_suffix(""))
+        i = Integration.load(func_file.with_suffix(""))
         if not i:
             raise ValueError("setup() decorator is allowed only in a product's setup.py")
 
@@ -211,7 +320,10 @@ def teardown(
     title: str | None = None,
     order: Literal["first", "last"] | None = None,
 ):
-    """Decorator to declare a function as a setup step for the integration where it resides"""
+    """
+    Decorator to declare a function as a setup step for the integration where it resides
+    If :title is not set, the function's docstring or name will be used
+    """
 
     def decorator(func: Callable):
         func_file = Path(inspect.getfile(func))

@@ -2,7 +2,7 @@ import asyncio
 from pathlib import Path
 
 from meshroom.utils import tabulate
-from meshroom.model import Mode, Role, Tenant
+from meshroom.model import Mode, Plug, ProductSetting, Role, Tenant
 import click
 from meshroom import model
 import sys
@@ -80,12 +80,16 @@ def list_integrations(
     topic: str | None = None,
 ):
     """List all integrations"""
-    print(
-        tabulate(
-            sorted(model.list_integrations(product=product, target_product=target_product, topic=topic), key=lambda x: (x.product, x.target_product)),
-            headers=["Product", "Target product", "Topic", "Role", "Mode", "Plugs"],
+    try:
+        print(
+            tabulate(
+                sorted(model.list_integrations(product=product, target_product=target_product, topic=topic), key=lambda x: (x.product, x.target_product)),
+                headers=["Product", {"3rd-party product": "target_product"}, "Topic", "Role", "Mode", "Plugs"],
+            )
         )
-    )
+    except ValueError as e:
+        click.echo(e)
+        exit(1)
 
 
 @_list.command(name="tenants")
@@ -162,7 +166,8 @@ def plug(
 ):
     """Connect two products via an existing integration"""
     try:
-        model.plug(src_tenant, dst_tenant, topic, mode, format)
+        plug = model.plug(src_tenant, dst_tenant, topic, mode, format)
+        _configure_plug(plug)
     except ValueError as e:
         click.echo(e)
         exit(1)
@@ -223,14 +228,7 @@ def add(
     """Add a new Tenant for a given Product"""
     try:
         tenant = model.create_tenant(product, name)
-        tenant.settings = {}
-        for setting in tenant.get_settings_schema():
-            tenant.settings[setting.name] = click.prompt(
-                f"{setting.name}",
-                default=setting.default,
-                hide_input=setting.secret,
-            )
-            tenant.save()
+        _configure_tenant(tenant)
         print("✓ Tenant created")
 
     except ValueError as e:
@@ -246,27 +244,7 @@ def configure(
     """Reconfigure an existing Tenant"""
     try:
         t = model.get_tenant(tenant)
-        t.settings = t.settings or {}
-        for setting in t.get_settings_schema():
-            if setting.secret:
-                title = f"{setting.name} (secret)"
-                if t.get_secret(setting.name):
-                    title = f"{setting.name} (secret, press Enter to keep current value)"
-                t.set_secret(
-                    setting.name,
-                    click.prompt(
-                        title,
-                        default=t.get_secret(setting.name),
-                        show_default=False,
-                        hide_input=True,
-                    ),
-                )
-            else:
-                t.settings[setting.name] = click.prompt(
-                    setting.name,
-                    default=t.settings.get(setting.name) or setting.default,
-                )
-            t.save()
+        _configure_tenant(t)
         print("✓ Tenant configured")
 
     except ValueError as e:
@@ -337,3 +315,74 @@ def emulate(
     except ValueError as e:
         click.echo(e)
         exit(1)
+
+
+def _configure_tenant(t: Tenant):
+    t.settings = t.settings or {}
+    for setting in t.get_settings_schema():
+        if setting.secret:
+            _configure_secret(t, setting)
+        else:
+            t.settings[setting.name] = _prompt_setting(setting, default=t.settings.get(setting.name))
+            t.save()
+
+
+def _configure_plug(p: Plug):
+    for end, setting in p.get_unconfigured_settings():
+        if setting.secret:
+            _configure_secret(p, setting)
+        elif end == "src":
+            p.src_config[setting.name] = _prompt_setting(setting, default=p.src_config.get(setting.name))
+            p.save()
+        else:
+            p.dst_config[setting.name] = _prompt_setting(setting, default=p.dst_config.get(setting.name))
+            p.save()
+
+
+def _configure_secret(t: Tenant | Plug, setting: ProductSetting):
+    title = f"{setting.name} (secret)"
+    if t.get_secret(setting.name):
+        title = f"{setting.name} (secret, press Enter to keep current value)"
+    t.set_secret(setting.name, _prompt_setting(setting, title=title, default=t.settings.get(setting.name)))
+    t.save()
+
+
+def _prompt_setting(setting: ProductSetting, title: str | None = None, default=None):
+    if setting.secret:
+        title = title or f"{setting.name} (secret)"
+        return click.prompt(
+            title,
+            default=default,
+            show_default=False,
+            hide_input=True,
+        )
+
+    else:
+        title = title or setting.name
+        if setting.type == "boolean":
+            return click.confirm(
+                setting.name,
+                default=default or setting.default,
+            )
+
+        if setting.type == "array":
+            print(title + "[] (enter blank line to finish)")
+            return list(iter(lambda: click.prompt("> ", default=""), ""))
+
+        if setting.type == "object":
+            print(title)
+            print("-" * len(title))
+            out = {prop.name: _prompt_setting(prop, default=default.get(prop.name) if default else None) for prop in setting.properties}
+            print()
+            return out
+
+        x = click.prompt(
+            setting.name,
+            default=default or setting.default,
+        )
+
+        if setting.type == "number":
+            return float(x)
+        if setting.type == "integer":
+            return int(x)
+        return x

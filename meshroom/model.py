@@ -1,9 +1,14 @@
+from ast import In
 import asyncio
-import inspect
+from functools import cache
 import logging
 from pathlib import Path
-from typing import Any, Callable, Generator, Literal
-from pydantic import BaseModel, ConfigDict
+from pprint import pp
+from re import Pattern
+import re
+from typing import Any, Callable, Generator, Literal, cast
+from fastapi.background import P
+from pydantic import BaseModel, ConfigDict, field_validator
 import yaml
 import shutil
 
@@ -32,12 +37,7 @@ class Model(BaseModel):
         return super().model_dump(*args, **kw)
 
 
-class Consumer(Model):
-    format: str | None = None
-    mode: Mode = "push"
-
-
-class Producer(Model):
+class Cap(Model):
     format: str | None = None
     mode: Mode = "push"
 
@@ -51,16 +51,6 @@ class Capability(Model):
     role: Role
     mode: Mode = "push"
     format: str | None = None
-
-    @staticmethod
-    def consumer(topic: str, consumer: Consumer):
-        """Create a consumer capability"""
-        return Capability(topic=topic, role="consumer", mode=consumer.mode, format=consumer.format)
-
-    @staticmethod
-    def producer(topic: str, producer: Producer):
-        """Create a producer capability"""
-        return Capability(topic=topic, role="producer", mode=producer.mode, format=producer.format)
 
     def __hash__(self):
         return (self.topic, self.role, self.mode, self.format).__hash__()
@@ -83,7 +73,7 @@ class Capability(Model):
             x.append(self.mode)
         if self.format is not None:
             x.append(self.format)
-        out = self.topic
+        out = f"{self.topic} {self.role}"
         if x:
             out += f" ({' '.join(x)})"
         return out
@@ -104,8 +94,12 @@ class Product(Model):
     vendor: str = ""
     tags: set[str] = set()
     settings: list["ProductSetting"] = []
-    consumes: dict[str, list[Consumer]] = {}
-    produces: dict[str, list[Producer]] = {}
+    consumes: dict[str, list[Cap]] = {}
+    produces: dict[str, list[Cap]] = {}
+    triggers: dict[str, list[Cap]] = {}
+    executes: dict[str, list[Cap]] = {}
+
+    model_config = ConfigDict(extra="allow")
 
     @staticmethod
     def load(path: Path):
@@ -148,8 +142,24 @@ class Product(Model):
     def tenants(self):
         return list(list_tenants(self.name))
 
-    def add_consumer_setup_step(
+    def add_capability(self, role: Role, topic: str, mode: Mode, format: str | None = None):
+        """
+        Add a generic capability to the product's definition
+        """
+        field = {
+            "consumer": "consumes",
+            "producer": "produces",
+            "trigger": "triggers",
+            "executor": "executes",
+        }[role]
+        if topic not in getattr(self, field):
+            getattr(self, field)[topic] = []
+        getattr(self, field)[topic].append(Cap(mode=mode, format=format))
+        return self
+
+    def add_setup_step(
         self,
+        role: Role,
         title: str,
         func: Callable | str,
         topic: str,
@@ -166,7 +176,12 @@ class Product(Model):
         if f := ast.append_function(func):
             ast.add_imports(Integration, Plug)
             f.decorate(
-                meshroom.decorators.setup_consumer,
+                {
+                    "consumer": meshroom.decorators.setup_consumer,
+                    "producer": meshroom.decorators.setup_producer,
+                    "trigger": meshroom.decorators.setup_trigger,
+                    "executor": meshroom.decorators.setup_executor,
+                }[role],
                 order=order,
                 topic=topic,
                 mode=mode,
@@ -175,35 +190,9 @@ class Product(Model):
         ast.save()
         return self
 
-    def add_producer_setup_step(
+    def add_teardown_step(
         self,
-        title: str,
-        func: Callable | str,
-        topic: str,
-        mode: Mode = "push",
-        order: str | None = None,
-    ):
-        """
-        Append a generic setup step to the product's setup.py
-        to setup a producer for the given topic
-        """
-        import meshroom.decorators
-
-        ast = AST(self.path / "setup.py")
-        if f := ast.append_function(func):
-            ast.add_imports(Integration, Plug)
-            f.decorate(
-                meshroom.decorators.setup_producer,
-                order=order,
-                topic=topic,
-                mode=mode,
-                title=title,
-            )
-        ast.save()
-        return self
-
-    def add_consumer_teardown_step(
-        self,
+        role: Role,
         title: str,
         func: Callable | str,
         topic: str,
@@ -220,34 +209,12 @@ class Product(Model):
         if f := ast.append_function(func):
             ast.add_imports(Integration, Plug)
             f.decorate(
-                meshroom.decorators.teardown_consumer,
-                order=order,
-                topic=topic,
-                mode=mode,
-                title=title,
-            )
-        ast.save()
-        return self
-
-    def add_producer_teardown_step(
-        self,
-        title: str,
-        func: Callable | str,
-        topic: str,
-        mode: Mode = "push",
-        order: str | None = None,
-    ):
-        """
-        Append a generic teardown step to the product's setup.py
-        to teardown a producer for the given topic
-        """
-        import meshroom.decorators
-
-        ast = AST(self.path / "setup.py")
-        if f := ast.append_function(func):
-            ast.add_imports(Integration, Plug)
-            f.decorate(
-                meshroom.decorators.teardown_producer,
+                {
+                    "consumer": meshroom.decorators.teardown_consumer,
+                    "producer": meshroom.decorators.teardown_producer,
+                    "trigger": meshroom.decorators.teardown_trigger,
+                    "executor": meshroom.decorators.teardown_executor,
+                }[role],
                 order=order,
                 topic=topic,
                 mode=mode,
@@ -268,34 +235,38 @@ class Product(Model):
 
     def list_capabilities(self, role: Role | None = None, topic: str | None = None, format: str | None = None):
         """
-        List the Product's generic consumer/producer capabilities, either declared:
-        - in definition.yaml's "consumes" and "produces" sections
-        - via meshroom.decorators.setup_consumer(...) or meshroom.decorators.setup_producer(...) decorators in setup.py
+        List the Product's generic consumer/producer/trigger/executor capabilities, either declared:
+        - in definition.yaml's "consumes","produces","triggers", and "executes" sections
+        - via meshroom.decorators.setup_xxx(...) decorators in setup.py
         """
         from meshroom.decorators import SetupFunction
 
         out: set[Capability] = set()
 
-        # Collect consumers from definition.yaml
-        if role in ("consumer", None):
-            for t, consumers in self.consumes.items():
-                for consumer in consumers:
-                    if (not topic or topic == t) and (not format or format == consumer.format or consumer.format is None):
-                        out.add(Capability.consumer(t, consumer))
+        mappings = {
+            "consumer": "consumes",
+            "producer": "produces",
+            "trigger": "triggers",
+            "executor": "executes",
+        }
 
-        # Collect producers from definition.yaml
-        if role in ("producer", None):
-            for t, producers in self.produces.items():
-                for producer in producers:
-                    if (not topic or topic == t) and (not format or format == producer.format or consumer.format is None):
-                        out.add(Capability.producer(t, producer))
+        for r, field in mappings.items():
+            for t, caps in getattr(self, field).items():
+                for c in cast(list[Cap], caps):
+                    if (not topic or topic == t) and (not format or format == c.format or c.format is None):
+                        out.add(Capability(topic=t, role=r, mode=c.mode, format=c.format))
 
         # Collect capabilities declared in decorated setup functions
         self.import_python_modules()
         for sf in SetupFunction.get_all("setup"):
             if sf.product == self.name and sf.target_product is None:
                 if (role is None or sf.role == role) and (topic is None or sf.topic == topic) and (format is None or sf.format == format or sf.format is None):
-                    out.add(Capability(topic=sf.topic, role=sf.role, mode=sf.mode, format=sf.format))
+                    # If the setup function is mode-agnostic, consider that the product's capability supports both push and pull
+                    if sf.mode is None:
+                        for m in ("push", "pull"):
+                            out.add(Capability(topic=sf.topic, role=sf.role, mode=m, format=sf.format))
+                    else:
+                        out.add(Capability(topic=sf.topic, role=sf.role, mode=sf.mode, format=sf.format))
 
         return list(out)
 
@@ -326,7 +297,7 @@ class Product(Model):
         Import the product's python modules to collect all setup functions
         """
         for module in self.path.glob("*.py"):
-            import_module(module)
+            import_module(module, package_dir=self.path)
 
 
 class ProductSetting(Model):
@@ -338,6 +309,69 @@ class ProductSetting(Model):
     description: str = ""
     secret: bool = False
     required: bool = False
+
+    @field_validator("type", mode="before")
+    def convert_type(cls, v):
+        # Some settings are defined as [type, 'null'] to reflect optional values, we want to keep only the type
+        if isinstance(v, list):
+            return [x for x in v if x not in ("null")][0]
+        return v
+
+    @staticmethod
+    def from_json_schema(
+        schema: dict | None = None,
+        force_secret: set[str, Pattern] | None = {r"password|token|secret"},  # Ensure password/token are stored as secrets by default, even when they are missing the secret:true flag
+    ) -> list["ProductSetting"]:
+        """
+        Convert a JSON schema to a list of ProductSetting objects
+        :schema: A valid JSON schema to convert
+        :force_secret: An optional set of setting names or regex patterns who shall be forced as secret
+        """
+        out = []
+        if not schema:
+            return out
+
+        def is_secret(x: dict, name: str | None = None):
+            for rule in force_secret or []:
+                if isinstance(rule, str) and (name or x.get("name")) == rule:
+                    return True
+                elif re.search(rule, (name or x.get("name", "")), re.I):
+                    return True
+            if x.get("secret", False):
+                return True
+            return x.get("secret", False)
+
+        if schema.get("type") not in (None, "object", "array"):
+            if schema.get("name"):
+                return ProductSetting(
+                    name=schema["name"],
+                    type=schema["type"],
+                    description=schema.get("description", ""),
+                    default=schema.get("default"),
+                    required=schema.get("required", False),
+                    secret=is_secret(schema),
+                )
+            return schema["type"]
+
+        for k, v in schema.get("properties", {}).items():
+            is_required = k in schema.get("required", [])
+            try:
+                out.append(
+                    ProductSetting(
+                        name=k,
+                        type=v.get("type", "string"),
+                        description=v.get("description", ""),
+                        default=v.get("default"),
+                        required=is_required or v.get("required", False),
+                        secret=is_secret(v, k),
+                        items=ProductSetting.from_json_schema(v.get("items", {}), force_secret) or [],
+                        properties=ProductSetting.from_json_schema({"name": k, **v}, force_secret) if v.get("type") == "object" else [],
+                    )
+                )
+            except ValueError:
+                logging.warning(f"WARNING: Error creating product setting from JSON schema\n\n{schema}\n\n{k}:{v}", exc_info=True)
+
+        return out
 
 
 class Integration(Model):
@@ -357,7 +391,31 @@ class Integration(Model):
     mode: Mode = "push"
     format: str | None = None
     documentation_url: str = ""
-    settings: dict[str, str] = {}
+    settings: list["ProductSetting"] = []
+
+    model_config = ConfigDict(extra="allow")
+
+    def __str__(self):
+        if self.role in ("producer", "trigger"):
+            return f"{self.product} --[{self.topic}:{self.mode}]-> {self.target_product} ({self.role})"
+        else:
+            return f"{self.product} <-[{self.topic}:{self.mode}]-- {self.target_product} ({self.role})"
+
+    # def __repr__(self):
+    #     return str(self)
+
+    def __hash__(self):
+        return hash((self.product, self.target_product, self.topic, self.role, self.mode, self.format))
+
+    def __eq__(self, value: "Integration"):
+        return (
+            self.product == value.product
+            and self.target_product == value.target_product
+            and self.topic == value.topic
+            and self.role == value.role
+            and self.mode == value.mode
+            and self.format == value.format
+        )
 
     def save(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -368,6 +426,9 @@ class Integration(Model):
     @staticmethod
     def load(filepath: Path):
         filepath = path_in_project(filepath)
+        if not filepath.with_suffix(".yml").is_file():
+            raise ValueError(f"No integration found at {filepath}")
+
         mode = "push"
         if filepath.stem.endswith("_pull"):
             topic, role, mode = filepath.stem.rsplit("_", maxsplit=2)
@@ -460,20 +521,22 @@ class Integration(Model):
         return self
 
     def up(self, plug: "Plug"):
-        """Setup the Integration on the source tenant"""
+        """Setup the Integration on the tenant"""
         print(f"Setup {self.role}")
+        tenant = plug.get_src_tenant() if self.role in ("producer", "trigger") else plug.get_dst_tenant()
         for i, f in enumerate(self.get_setup_functions("setup")):
-            print(f"{i + 1}) {f.get_title()}")
-            f.call(plug=plug, integration=self)
-        print("✓ done")
+            print(f"\n{i + 1}) {f.get_title()}")
+            f.call(plug=plug, integration=self, tenant=tenant)
+        print("✓ done\n")
 
     def down(self, plug: "Plug"):
-        """Tear down the Integration from the source tenant"""
+        """Tear down the Integration from the tenant"""
         print("Teardown", self.role)
+        tenant = plug.get_src_tenant() if self.role in ("producer", "trigger") else plug.get_dst_tenant()
         for i, f in enumerate(self.get_setup_functions("teardown")):
-            print(f"{i + 1}) {f.get_title()}")
-            f.call(plug=plug, integration=self)
-        print("✓ done")
+            print(f"\n{i + 1}) {f.get_title()}")
+            f.call(plug=plug, integration=self, tenant=tenant)
+        print("✓ done\n")
 
     def get_setup_functions(self, type: Literal["setup", "teardown"] | None = None):
         """
@@ -483,6 +546,8 @@ class Integration(Model):
         """
         from meshroom.decorators import SetupFunction
         from meshroom.generators import generate_setup_function
+
+        self.import_python_modules()
 
         # Sort the setup functions by their declared order
         funcs = sorted(sf for sf in SetupFunction.get_all(type) if sf.match(self))
@@ -496,6 +561,14 @@ class Integration(Model):
             funcs.append(f)
 
         return funcs
+
+    def import_python_modules(self):
+        """
+        Import the integration's python module to collect all setup functions
+        Also ensure the product's python modules are imported too
+        """
+        import_module(self.path.with_suffix(".py"), package_dir=self.path.parent)
+        get_product(self.product).import_python_modules()
 
 
 class Tenant(Model):
@@ -571,6 +644,7 @@ class Plug(Model):
     format: str | None = None
     src_config: dict = {}
     dst_config: dict = {}
+    status: Literal["up", "down"] = "down"
 
     def __str__(self):
         out = f"{self.src_tenant} --[{self.topic}:{self.mode}]-> {self.dst_tenant}"
@@ -612,7 +686,7 @@ class Plug(Model):
     @property
     def path(self):
         fn = f"{self.topic}_{self.mode}" if self.mode == "pull" else self.topic
-        return path_in_project(PROJECT_DIR / "config" / self.src_tenant / "plugs" / self.dst_tenant / f"{fn}.yaml")
+        return path_in_project(get_tenant(self.src_tenant).path / "plugs" / self.dst_tenant / f"{fn}.yaml")
 
     def get_secret(self, key: str, prompt_if_not_exist: str | bool | None = None):
         """Retrieve a secret value for this plug (GPG encrypted)"""
@@ -631,22 +705,26 @@ class Plug(Model):
             value,
         )
 
+    def delete_secret(self, key: str):
+        """Delete a secret value for this plug"""
+        return secrets.delete_secret(f"{self.src_tenant}_{self.dst_tenant}_{self.topic}_{self.mode}_{key}")
+
     def get_consumer(self):
         """Get a suitable consumer to setup the consumer side of the integration"""
-        consumers = list(list_integrations(self.dst_tenant, self.src_tenant, self.topic, role="consumer", mode=self.mode))
+        consumers = list(list_integrations(self.get_dst_product().name, self.get_src_product().name, self.topic, role="consumer", mode=self.mode))
         if not consumers:
-            raise ValueError(f"No consumer seems to be implemented for {self.src_tenant} -> {self.dst_tenant} {self.topic} in {self.mode} mode")
+            raise ValueError(f"No consumer seems to be implemented for {self}")
         elif len(consumers) > 1:
-            raise ValueError(f"Multiple consumers found for {self.src_tenant} -> {self.dst_tenant} {self.topic} in {self.mode} mode")
+            raise ValueError(f"Multiple consumers found for {self}:\n{consumers}")
         return consumers[0]
 
     def get_producer(self):
         """Get a suitable producer to setup the producer side of the integration"""
-        producers = list(list_integrations(self.src_tenant, self.dst_tenant, self.topic, role="producer", mode=self.mode))
+        producers = list(list_integrations(self.get_src_product().name, self.get_dst_product().name, self.topic, role="producer", mode=self.mode))
         if not producers:
-            raise ValueError(f"No producer seems to be implemented for {self.src_tenant} -> {self.dst_tenant} {self.topic} in {self.mode} mode")
+            raise ValueError(f"No producer seems to be implemented for {self}")
         elif len(producers) > 1:
-            raise ValueError(f"Multiple producers found for {self.src_tenant} -> {self.dst_tenant} {self.topic} in {self.mode} mode")
+            raise ValueError(f"Multiple producers found for {self}\n{producers}")
         return producers[0]
 
     def get_src_tenant(self):
@@ -665,20 +743,42 @@ class Plug(Model):
         """Get the destination Product of the integration"""
         return get_product(self.get_dst_tenant().product)
 
+    def get_unconfigured_settings(self):
+        """List the settings that are not configured yet for the producer and the consumer"""
+        # Look unconfigured settings for the producer and the consumer, respectively
+        p = [("src", s) for s in self.get_producer().settings if s.name not in self.src_config]
+        c = [("dst", s) for s in self.get_consumer().settings if s.name not in self.dst_config]
+
+        # In pull mode, the producer is configured first, (resp. consumer in push mode)
+        return p + c if self.mode == "pull" else c + p
+
     def up(self):
         """Setup the integration on the target Tenants"""
+        if self.status == "up":
+            return print(f"🚫 {self} is already up")
+
         print("Setup", self)
 
         # Look for a (consumer, producer) pair of integrations
         p = self.get_producer()
         c = self.get_consumer()
 
-        p.up(self)
-        c.up(self)
-        return self
+        # In pull mode, the producer is set up first, (resp. consumer in push mode)
+        if self.mode == "pull":
+            p.up(self)
+            c.up(self)
+        else:
+            c.up(self)
+            p.up(self)
+
+        self.status = "up"
+        return self.save()
 
     def down(self):
         """Tear down the integration on the target Tenants"""
+        if self.status == "down":
+            return print(f"🚫 {self} is already down")
+
         print("Teardown", self)
 
         # Look for a (consumer, producer) pair of integrations
@@ -687,7 +787,8 @@ class Plug(Model):
 
         p.down(self)
         c.down(self)
-        return self
+        self.status = "down"
+        return self.save()
 
     async def watch(self):
         """Watch the integration for data flowing through"""
@@ -782,6 +883,7 @@ def list_tenants(product: str | None = None, search: str | None = None) -> Gener
                     yield from list_tenants(product_dir.name, search=search)
 
 
+@cache
 def get_product(product: str):
     """Get a product by name"""
     path = path_in_project(PROJECT_DIR / "products" / product)
@@ -791,6 +893,7 @@ def get_product(product: str):
     return Product.load(path)
 
 
+@cache
 def get_tenant(tenant: str, product: str | None = None):
     """Get a tenant by name"""
     path = path_in_project(PROJECT_DIR / "config")
@@ -836,32 +939,41 @@ def plug(src_tenant: str, dst_tenant: str, topic: str, mode: Mode | None = None,
     """
     Create a new Plug between two Tenants for a given topic
     """
-    mode = mode or "push"
-
     # Ensure tenants exist
     src = get_tenant(src_tenant)
     dst = get_tenant(dst_tenant)
-
     try:
         # Check if the plug already exists (whatever the format)
         plug = get_plug(src_tenant, dst_tenant, topic, mode)
         print(f"🚫 Plug {plug}  already exists at {plug.path}")
         return plug
     except ValueError:
-        producers = list(list_integrations(src.product, dst.product, topic, "producer", mode=mode or "push", format=format))
-        consumers = list(list_integrations(dst.product, src.product, topic, "consumer", mode=mode or "push", format=format))
-        triggers = list(list_integrations(src.product, dst.product, topic, "trigger", mode=mode or "push", format=format))
-        executors = list(list_integrations(dst.product, src.product, topic, "executor", mode=mode or "push", format=format))
+        producers = list(list_integrations(src.product, dst.product, topic, "producer", mode=mode, format=format))
+        consumers = list(list_integrations(dst.product, src.product, topic, "consumer", mode=mode, format=format))
+        triggers = list(list_integrations(src.product, dst.product, topic, "trigger", mode=mode, format=format))
+        executors = list(list_integrations(dst.product, src.product, topic, "executor", mode=mode, format=format))
         for producer in producers:
             for consumer in consumers:
                 if producer.matches(consumer):
-                    plug = Plug(src_tenant=src_tenant, dst_tenant=dst_tenant, topic=topic, mode=mode, format=producer.format or consumer.format or format).save()
+                    plug = Plug(
+                        src_tenant=src_tenant,
+                        dst_tenant=dst_tenant,
+                        topic=topic,
+                        mode=producer.mode or consumer.mode or mode,
+                        format=producer.format or consumer.format or format,
+                    ).save()
                     print(f"✓ Plugged {plug}")
                     return plug
         for trigger in triggers:
             for executor in executors:
                 if trigger.matches(executor):
-                    plug = Plug(src_tenant=src_tenant, dst_tenant=dst_tenant, topic=topic, mode=mode, format=trigger.format or executor.format or format).save()
+                    plug = Plug(
+                        src_tenant=src_tenant,
+                        dst_tenant=dst_tenant,
+                        topic=topic,
+                        mode=trigger.mode or executor.mode or mode,
+                        format=trigger.format or executor.format or format,
+                    ).save()
                     print(f"✓ Plugged {plug}")
                     return plug
 
@@ -884,6 +996,7 @@ def unplug(src_tenant: str, dst_tenant: str, topic: str, mode: Mode | None = Non
         print(f"❌ Plug {src_tenant} --[{topic}:{mode}]-> {dst_tenant} not found")
 
 
+@cache
 def list_integrations(
     product: str | None = None,
     target_product: str | None = None,
@@ -891,9 +1004,10 @@ def list_integrations(
     role: Role | None = None,
     mode: Mode | None = None,
     format: str | None = None,
-):
+) -> list[Integration]:
+    out: set[Integration] = set()
     path = PROJECT_DIR / "products"
-    for product_dir in path.iterdir() if product is None else [path / product]:
+    for product_dir in path.iterdir() if product is None else [get_product(product).path]:
         if not product_dir.is_dir():
             continue
 
@@ -907,7 +1021,7 @@ def list_integrations(
                     if integration_file.is_file() and integration_file.suffix in (".yml", ".yaml"):
                         i = Integration.load(integration_file)
                         if (not topic or i.topic == topic) and (not role or i.role == role) and (not mode or i.mode == mode) and (not format or i.format == format):
-                            yield i
+                            out.add(i)
 
         # 2) Look for matching pairs of generic product capabilities, with lower priority
         for a in get_product(product_dir.name).list_capabilities(role=role, topic=topic, format=format):
@@ -918,16 +1032,20 @@ def list_integrations(
                 for b in get_product(target_product_dir.name).list_capabilities(topic=topic, format=format):
                     if a.matches(b):
                         # Yield generic Integration objects for matching capabilities
-                        yield Integration(
-                            product=product_dir.name,
-                            target_product=target_product_dir.name,
-                            topic=a.topic,
-                            role=a.role,
-                            mode=a.mode,
-                            format=a.format or b.format,
+                        out.add(
+                            Integration(
+                                product=product_dir.name,
+                                target_product=target_product_dir.name,
+                                topic=a.topic,
+                                role=a.role,
+                                mode=a.mode,
+                                format=a.format or b.format,
+                            )
                         )
+    return list(out)
 
 
+@cache
 def get_integration(product: str, target_product: str, topic: str, role: Role, mode: Mode | None = None):
     try:
         return list(list_integrations(product, target_product, topic, role, mode))[0]
@@ -935,6 +1053,7 @@ def get_integration(product: str, target_product: str, topic: str, role: Role, m
         return None
 
 
+@cache
 def list_plugs(
     src_tenant: str | None = None,
     dst_tenant: str | None = None,
@@ -945,10 +1064,14 @@ def list_plugs(
     if not path.is_dir():
         return
     for product_dir in path.iterdir():
-        if (product_dir / "plugs").is_dir():
-            for tenant_dir in (product_dir / "plugs").iterdir():
-                if tenant_dir.is_dir():
-                    for plug_file in tenant_dir.iterdir():
+        if not product_dir.is_dir():
+            continue
+        for src_tenant_dir in product_dir.iterdir():
+            if not (src_tenant_dir / "plugs").is_dir():
+                continue
+            for dst_tenant_dir in (src_tenant_dir / "plugs").iterdir():
+                if dst_tenant_dir.is_dir():
+                    for plug_file in dst_tenant_dir.iterdir():
                         if plug_file.is_file():
                             p = Plug.load(plug_file)
                             if (
@@ -960,6 +1083,7 @@ def list_plugs(
                                 yield p
 
 
+@cache
 def get_plug(src_tenant: str, dst_tenant: str, topic: str, mode: Mode | None = None):
     for plug in list_plugs(src_tenant, dst_tenant, topic, mode):
         return plug

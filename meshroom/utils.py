@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 import shutil
 from subprocess import check_call
+import sys
 import tomllib
 import importlib.util
 from typing import Iterable
@@ -98,12 +99,19 @@ def git_pull(url: str, path: Path):
         check_call(["git", "clone", url, path])
 
 
-def import_module(path: Path | str):
+def import_module(path: Path | str, package_dir: Path | str | None = ""):
     path = Path(path)
+    package_dir = package_dir or path.parent
     if path.is_file():
-        spec = importlib.util.spec_from_file_location(path.stem, path)
+        name = path.stem
+        old_sys_path = sys.path.copy()
+        if package_dir:
+            name = path.relative_to(Path(package_dir).parent).with_suffix("").as_posix().replace("/", ".")
+            sys.path.insert(0, Path(package_dir).parent.as_posix())
+        spec = importlib.util.spec_from_file_location(name, str(Path(path).resolve()))
         m = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(m)
+        sys.path = old_sys_path
         return m
     return None
 

@@ -6,3 +6,5 @@ produces:
       url: https://p.com/api/stuff
       method: GET
       format: json
+  events:
+    - mode: push

@@ -45,7 +45,7 @@ def write_secrets(secrets: dict, master_key: str | None = None):
         res = gpg.gen_key(
             gpg.gen_key_input(
                 name_email=gpg_id,
-                passphrase=master_key or getpass(f"Enter a Master Key for this Meshroom project (will use {gpg_id} GPG identity): "),
+                passphrase=master_key or getpass(f"Enter a Master Key to for this Meshroom project's secrets store (will use {gpg_id} GPG identity): "),
             )
         )
         if not res:
@@ -76,5 +76,6 @@ def set_secret(key: str, value: str):
 def delete_secret(key: str):
     """Delete a secret from the secrets store"""
     s = read_secrets()
-    del s[key]
+    if key in s:
+        del s[key]
     write_secrets(s)
