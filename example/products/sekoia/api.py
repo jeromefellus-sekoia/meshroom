@@ -1,3 +1,5 @@
+from pathlib import Path
+from time import sleep
 from requests import HTTPError, Session
 
 from .utils import exclude_nones
@@ -122,3 +124,144 @@ class SekoiaAPI(Session):
                 "value": settings,
             },
         ).json()
+
+    def list_intake_formats(self, name: str, is_custom: bool | None = None):
+        """Return a list of intake formats matching the given name and is_custom status"""
+        return [
+            x
+            for x in self.get("/v1/ingest/formats", params={"match[name]": name}).json()["items"]
+            if is_custom is None or (x["community_uuid"] is not None and is_custom) or (x["community_uuid"] is None and not is_custom)
+        ]
+
+    def get_intake_format(self, uuid: str):
+        """Return the intake format for the given UUID"""
+        try:
+            return self.get(f"/v1/ingest/formats/{uuid}")
+        except Exception:
+            return None
+
+    def create_custom_intake_format(
+        self,
+        uuid: str,
+        name: str,
+        description: str | None = None,
+        parser: dict = {},
+        slug: str | None = None,
+        datasources: list[str] = [],
+        taxonomy: list = [],
+        smart_descriptions: list = [],
+        logo: Path | None = None,
+        automation_module_uuid: str | None = None,
+        automation_connector_uuid: str | None = None,
+    ):
+        """Create a custom intake format"""
+        f = self.post(
+            "v1/ingest/formats",
+            json={
+                "format_uuid": uuid,
+                "name": name,
+                "datasources": datasources,
+                "description": description or name,
+                "parser": parser,
+                "slug": slug or name.lower().replace(" ", "-"),
+                "taxonomy": taxonomy,
+                "automation_module_uuid": automation_module_uuid,
+                "automation_connector_uuid": automation_connector_uuid,
+            },
+        ).json()
+        self.post(f"v1/ingest/formats/{f['uuid']}/smart-descriptions", json={"content": smart_descriptions})
+        if logo and logo.is_file():
+            self.put(
+                f"v1/ingest/formats/{f['uuid']}/picture",
+                files={"picture": (logo.name, logo.open("rb"), "image/png")},
+            )
+        return f
+
+    def update_custom_intake_format(
+        self,
+        uuid: str,
+        name: str,
+        description: str,
+        parser: dict = {},
+        datasources: list[str] = [],
+        slug: str | None = None,
+        taxonomy: list = [],
+        smart_descriptions: list = [],
+        logo: Path | None = None,
+        automation_module_uuid: str | None = None,
+        automation_connector_uuid: str | None = None,
+    ):
+        """Update a custom intake format"""
+        self.put(
+            f"v1/ingest/formats/{uuid}",
+            json={
+                "name": name,
+                "datasources": datasources,
+                "description": description,
+                "parser": parser,
+                "slug": slug or name.lower().replace(" ", "-"),
+                "taxonomy": taxonomy,
+                "uuid": uuid,
+                "automation_module_uuid": automation_module_uuid,
+                "automation_connector_uuid": automation_connector_uuid,
+            },
+        )
+        self.post(f"v1/ingest/formats/{uuid}/smart-descriptions", json={"content": smart_descriptions})
+        if logo and logo.is_file():
+            self.put(
+                f"v1/ingest/formats/{uuid}/picture",
+                files={"picture": (logo.name, logo.open("rb"), "image/png")},
+            )
+
+    def create_or_update_custom_intake_format(
+        self,
+        uuid: str,
+        name: str,
+        description: str,
+        parser: dict = {},
+        datasources: list[str] = [],
+        slug: str | None = None,
+        taxonomy: list = [],
+        smart_descriptions: list = [],
+        logo: Path | None = None,
+        automation_module_uuid: str | None = None,
+        automation_connector_uuid: str | None = None,
+    ):
+        """Create or update a custom intake format"""
+        if self.get_intake_format(uuid):
+            return self.update_custom_intake_format(uuid, name, description, parser, datasources, slug, taxonomy, smart_descriptions, logo, automation_module_uuid, automation_connector_uuid)
+        else:
+            return self.create_custom_intake_format(uuid, name, description, parser, slug, datasources, taxonomy, smart_descriptions, logo, automation_module_uuid, automation_connector_uuid)
+
+    def pull_custom_integration(self, git_url: str, branch: str = "master", path: str = "", ssh_key_id: str = None):
+        """Pull a custom integration from a Git repository"""
+        print(f"Pulling custom integration from Git at {git_url} /{path} branch={branch} (this can take a few minutes to build the module's docker image)")
+        task_uuid = self.post(
+            "/v1/symphony/modules/from-git",
+            json={
+                "branch": branch,
+                "git": git_url,
+                "path": path,
+                "ssh_key_id": ssh_key_id,
+            },
+        ).json()["task_uuid"]
+        step_status = {}
+        errors = []
+        while True:
+            sleep(2)
+            print(".", end="", flush=True)
+            status = self.get(f"/v1/tasks/{task_uuid}").json()
+            for s in status["attributes"]["validation_steps"]:
+                if step_status.get(s["name"]) != s["status"]:
+                    print(f"{s['name']}: {s['status']}")
+                    if s["status"] == "failed" and s.get("error"):
+                        errors.append(f"{s['error']} {s.get('output', '')}")
+                step_status[s["name"]] = s["status"]
+            if status.get("status") == "FAILED":
+                raise RuntimeError(f"Failed to pull the custom integration: \n{'\n'.join(errors)}")
+            if status.get("status") in ("SUCCESS", "FINISHED"):
+                break
+
+    def create_ssh_key(self):
+        """Create an SSH key for pulling custom integrations from Git"""
+        return self.post("/v1/symphony/ssh-keys/").json()

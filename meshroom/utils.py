@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import re
 import shutil
 from subprocess import check_call
 import sys
@@ -97,6 +98,17 @@ def git_pull(url: str, path: Path):
         check_call(["git", "pull"], cwd=path)
     else:
         check_call(["git", "clone", url, path])
+
+
+def git_is_private(url: str):
+    """Check if a remove git repository is private"""
+    try:
+        # Ensure we use https:// repo URL and pass dummy credentials
+        url = re.sub(r"^git@([^:]+):", r"https://dummy:password@\1/", url)
+        check_call(["git", "ls-remote", url])
+        return False
+    except Exception:
+        return True
 
 
 def import_module(path: Path | str, package_dir: Path | str | None = ""):

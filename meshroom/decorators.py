@@ -4,8 +4,9 @@ from typing import Callable, Literal
 from meshroom.ast import adapt_kwargs_to_signature
 from meshroom.model import Integration, Model, Role, Mode, get_product, get_project_dir, get_integration
 
-SetupFunctionType = Literal["setup", "teardown"]
+SetupFunctionType = Literal["setup", "teardown", "scaffold"]
 _setup_functions: set["SetupFunction"] = set()
+SetupFunctionOrder = Literal["first", "last"] | int
 
 
 class SetupFunction(Model):
@@ -17,7 +18,7 @@ class SetupFunction(Model):
     mode: Mode | None = None
     format: str | None = None
     keep_when_overloaded: bool = False
-    order: Literal["first", "last"] | None = None
+    order: SetupFunctionOrder | None = None
     title: str
     type: SetupFunctionType = "setup"
 
@@ -32,11 +33,15 @@ class SetupFunction(Model):
         )
 
     def __lt__(self, other: "SetupFunction"):
+        if self.order == "first":
+            return True
+        elif self.order == "last":
+            return False
         if other.order == "first":
             return False
         elif other.order == "last":
             return True
-        return False
+        return self.order < other.order
 
     def get_title(self):
         """Return this setup step's title, falling back to the setup function's name if not set"""
@@ -109,7 +114,7 @@ def setup_consumer(
     mode: Mode | None = None,
     format: str | None = None,
     keep_when_overloaded: bool = False,
-    order: Literal["first", "last"] | None = None,
+    order: SetupFunctionOrder | None = None,
 ):
     """
     Decorator to declare a function as a generic consumer setup step for the product where it resides
@@ -132,7 +137,7 @@ def teardown_consumer(
     mode: Mode | None = None,
     format: str | None = None,
     keep_when_overloaded: bool = False,
-    order: Literal["first", "last"] | None = None,
+    order: SetupFunctionOrder | None = None,
 ):
     """
     Decorator to declare a function as a generic consumer setup step for the product where it resides
@@ -155,7 +160,7 @@ def setup_executor(
     mode: Mode | None = None,
     format: str | None = None,
     keep_when_overloaded: bool = False,
-    order: Literal["first", "last"] | None = None,
+    order: SetupFunctionOrder | None = None,
 ):
     """
     Decorator to declare a function as a generic executor setup step for the product where it resides
@@ -178,7 +183,7 @@ def teardown_executor(
     mode: Mode | None = None,
     format: str | None = None,
     keep_when_overloaded: bool = False,
-    order: Literal["first", "last"] | None = None,
+    order: SetupFunctionOrder | None = None,
 ):
     """
     Decorator to declare a function as a generic executor setup step for the product where it resides
@@ -201,7 +206,7 @@ def setup_producer(
     mode: Mode | None = None,
     format: str | None = None,
     keep_when_overloaded: bool = False,
-    order: Literal["first", "last"] | None = None,
+    order: SetupFunctionOrder | None = None,
 ):
     """
     Decorator to declare a function as a generic producer setup step for the product where it resides
@@ -225,7 +230,7 @@ def teardown_producer(
     mode: Mode | None = None,
     format: str | None = None,
     keep_when_overloaded: bool = False,
-    order: Literal["first", "last"] | None = None,
+    order: SetupFunctionOrder | None = None,
 ):
     """
     Decorator to declare a function as a generic producer setup step for the product where it resides
@@ -249,7 +254,7 @@ def setup_trigger(
     mode: Mode | None = None,
     format: str | None = None,
     keep_when_overloaded: bool = False,
-    order: Literal["first", "last"] | None = None,
+    order: SetupFunctionOrder | None = None,
 ):
     """
     Decorator to declare a function as a generic trigger setup step for the product where it resides
@@ -273,7 +278,7 @@ def teardown_trigger(
     mode: Mode | None = None,
     format: str | None = None,
     keep_when_overloaded: bool = False,
-    order: Literal["first", "last"] | None = None,
+    order: SetupFunctionOrder | None = None,
 ):
     """
     Decorator to declare a function as a generic trigger setup step for the product where it resides
@@ -291,13 +296,97 @@ def teardown_trigger(
     return decorator
 
 
+def scaffold_consumer(
+    topic: str,
+    mode: Mode | None = None,
+    format: str | None = None,
+    order: SetupFunctionOrder | None = None,
+):
+    """
+    Decorator to declare a function as a code generator for a new consumer integration for the product where it resides
+    """
+
+    def decorator(func: Callable):
+        func_file = Path(inspect.getfile(func))
+        if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
+            raise ValueError("scaffold_consumer() decorator is allowed only in a product's scaffold.py")
+
+        SetupFunction.add(product.name, None, "consumer", topic, mode, func, True, order, None, "scaffold", format)
+        return func
+
+    return decorator
+
+
+def scaffold_executor(
+    topic: str,
+    mode: Mode | None = None,
+    format: str | None = None,
+    order: SetupFunctionOrder | None = None,
+):
+    """
+    Decorator to declare a function as a code generator for a new executor integration for the product where it resides
+    """
+
+    def decorator(func: Callable):
+        func_file = Path(inspect.getfile(func))
+        if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
+            raise ValueError("scaffold_executor() decorator is allowed only in a product's scaffold.py")
+
+        SetupFunction.add(product.name, None, "executor", topic, mode, func, True, order, None, "scaffold", format)
+        return func
+
+    return decorator
+
+
+def scaffold_producer(
+    topic: str,
+    mode: Mode | None = None,
+    format: str | None = None,
+    order: SetupFunctionOrder | None = None,
+):
+    """
+    Decorator to declare a function as a code generator for a new producer integration for the product where it resides
+    """
+
+    def decorator(func: Callable):
+        func_file = Path(inspect.getfile(func))
+        if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
+            raise ValueError("scaffold_producer() decorator is allowed only in a product's scaffold.py")
+
+        SetupFunction.add(product.name, None, "producer", topic, mode, func, True, order, None, "scaffold", format)
+        return func
+
+    return decorator
+
+
+def scaffold_trigger(
+    topic: str,
+    mode: Mode | None = None,
+    format: str | None = None,
+    order: SetupFunctionOrder | None = None,
+):
+    """
+    Decorator to declare a function as a code generator for a new trigger integration for the product where it resides
+    """
+
+    def decorator(func: Callable):
+        func_file = Path(inspect.getfile(func))
+        if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
+            raise ValueError("scaffold_trigger() decorator is allowed only in a product's scaffold.py")
+
+        SetupFunction.add(product.name, None, "trigger", topic, mode, func, True, order, None, "scaffold", format)
+        return func
+
+    return decorator
+
+
 # Integration-level setup decorators
 
 
 def setup(
     title: str | None = None,
     format: str | None = None,
-    order: Literal["first", "last"] | None = None,
+    order: SetupFunctionOrder | None = None,
 ):
     """
     Decorator to declare a function as a setup step for the integration where it resides
@@ -318,7 +407,7 @@ def setup(
 
 def teardown(
     title: str | None = None,
-    order: Literal["first", "last"] | None = None,
+    order: SetupFunctionOrder | None = None,
 ):
     """
     Decorator to declare a function as a setup step for the integration where it resides

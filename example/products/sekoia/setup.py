@@ -56,7 +56,7 @@ def create_intake_key(integration: Integration, plug: Plug, tenant: Tenant):
 
 @teardown_consumer("events")
 def delete_intake_key(integration: Integration, plug: Plug, tenant: Tenant):
-    """Delete the intake key when the integration is removed"""
+    """Delete the intake key when the plug is torn down"""
     api = SekoiaAPI(
         tenant.settings.get("region", "fra1"),
         tenant.get_secret("API_KEY"),

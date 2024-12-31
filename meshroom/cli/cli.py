@@ -1,5 +1,6 @@
 import asyncio
 from pathlib import Path
+import re
 
 from meshroom.utils import tabulate
 from meshroom.model import Mode, Plug, ProductSetting, Role, Tenant
@@ -157,17 +158,22 @@ def down(
 @click.argument("topic")
 @click.option("--mode", "-m", type=click.Choice(Mode.__args__), required=False)
 @click.option("--format", "-f", type=str, required=False)
+@click.option("--read-secret", "-s", multiple=True, help="Read a one-line secret from stdin (can be supplied multiple times)")
 def plug(
     src_tenant: str,
     dst_tenant: str,
     topic: str,
     mode: Mode | None = None,
     format: str | None = None,
+    read_secret: list[str] = [],
 ):
     """Connect two products via an existing integration"""
     try:
         plug = model.plug(src_tenant, dst_tenant, topic, mode, format)
-        _configure_plug(plug)
+        _configure_plug(
+            plug,
+            secrets={secret: sys.stdin.readline().strip() for secret in read_secret},
+        )
     except ValueError as e:
         click.echo(e)
         exit(1)
@@ -185,15 +191,28 @@ def create():
 @click.argument("topic")
 @click.argument("role", type=click.Choice(Role.__args__))
 @click.option("--mode", type=click.Choice(Mode.__args__), default="push")
+@click.option("--format", "-f")
 def create_integration(
     product: str,
     target_product: str,
     topic: str,
     role: Role,
     mode: Mode,
+    format: str | None = None,
 ):
     """Scaffold a new Integration"""
-    model.scaffold_integration(product, target_product, topic, role, mode)
+    # First scaffold the products capabilities if it doesn't exist
+    model.scaffold_capability(product, topic, role, mode, format)
+    model.scaffold_capability(
+        target_product,
+        topic,
+        # Create the complementary capability
+        {"consumer": "producer", "producer": "consumer", "executor": "trigger", "trigger": "executor"}[role],
+        mode,
+        format,
+    )
+    # Then create the integration itself
+    model.scaffold_integration(product, target_product, topic, role, mode, format)
 
 
 @create.command(name="product")
@@ -203,6 +222,23 @@ def create_product(
 ):
     """Scaffold a new Product"""
     model.scaffold_product(name)
+
+
+@create.command(name="capability")
+@click.argument("product")
+@click.argument("topic")
+@click.argument("role", type=click.Choice(Role.__args__))
+@click.option("--mode", "-m", type=click.Choice(Mode.__args__), default="push")
+@click.option("--format", "-f")
+def create_capability(
+    product: str,
+    topic: str,
+    role: Role,
+    mode: Mode,
+    format: str | None = None,
+):
+    """Scaffold a new product Capability"""
+    model.scaffold_capability(product, topic, role, mode, format)
 
 
 @meshroom.command()
@@ -221,14 +257,19 @@ def pull(
 @meshroom.command()
 @click.argument("product")
 @click.argument("name", required=False)
+@click.option("--read-secret", "-s", multiple=True, help="Read a one-line secret from stdin (can be supplied multiple times)")
 def add(
     product: str,
     name: str | None = None,
+    read_secret: list[str] = [],
 ):
     """Add a new Tenant for a given Product"""
     try:
         tenant = model.create_tenant(product, name)
-        _configure_tenant(tenant)
+        _configure_tenant(
+            tenant,
+            secrets={secret: sys.stdin.readline().strip() for secret in read_secret},
+        )
         print("✓ Tenant created")
 
     except ValueError as e:
@@ -238,13 +279,18 @@ def add(
 
 @meshroom.command()
 @click.argument("tenant")
+@click.option("--read-secret", "-s", multiple=True, help="Read a one-line secret from stdin (can be supplied multiple times)")
 def configure(
     tenant: str,
+    read_secret: list[str] = [],
 ):
     """Reconfigure an existing Tenant"""
     try:
         t = model.get_tenant(tenant)
-        _configure_tenant(t)
+        _configure_tenant(
+            t,
+            secrets={secret: sys.stdin.readline().strip() for secret in read_secret},
+        )
         print("✓ Tenant configured")
 
     except ValueError as e:
@@ -317,20 +363,26 @@ def emulate(
         exit(1)
 
 
-def _configure_tenant(t: Tenant):
+def _configure_tenant(t: Tenant, secrets: dict[str, str] = {}):
     t.settings = t.settings or {}
     for setting in t.get_settings_schema():
         if setting.secret:
-            _configure_secret(t, setting)
+            if setting.name in secrets:
+                t.set_secret(setting.name, secrets[setting.name])
+            else:
+                _configure_secret(t, setting)
         else:
             t.settings[setting.name] = _prompt_setting(setting, default=t.settings.get(setting.name))
             t.save()
 
 
-def _configure_plug(p: Plug):
+def _configure_plug(p: Plug, secrets: dict[str, str] = {}):
     for end, setting in p.get_unconfigured_settings():
         if setting.secret:
-            _configure_secret(p, setting)
+            if setting.name in secrets:
+                p.set_secret(setting.name, secrets[setting.name])
+            else:
+                _configure_secret(p, setting)
         elif end == "src":
             p.src_config[setting.name] = _prompt_setting(setting, default=p.src_config.get(setting.name))
             p.save()

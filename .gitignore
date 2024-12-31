@@ -6,5 +6,5 @@ mirrors/
 *.gpg
 .pytest_cache/
 tests/data
-tests/e2e/data
+/tests/e2e/data/
 /.vscode

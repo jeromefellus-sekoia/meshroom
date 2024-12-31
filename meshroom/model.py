@@ -1,13 +1,11 @@
-from ast import In
 import asyncio
+from dataclasses import field
 from functools import cache
 import logging
 from pathlib import Path
-from pprint import pp
 from re import Pattern
 import re
 from typing import Any, Callable, Generator, Literal, cast
-from fastapi.background import P
 from pydantic import BaseModel, ConfigDict, field_validator
 import yaml
 import shutil
@@ -19,6 +17,7 @@ from meshroom.utils import import_module, list_functions_from_module
 Role = Literal["consumer", "producer", "trigger", "executor"]
 Mode = Literal["push", "pull"]
 
+TEMPLATES_DIR = Path(__file__).parent / "templates"
 PROJECT_DIR = Path(".")
 
 
@@ -100,6 +99,12 @@ class Product(Model):
     executes: dict[str, list[Cap]] = {}
 
     model_config = ConfigDict(extra="allow")
+
+    @field_validator("name")
+    def validate_name(self, v):
+        if not re.match(r"^\w+$", v):
+            raise ValueError("Invalid product name. Only alphanumeric characters, and underscores are allowed.")
+        return v
 
     @staticmethod
     def load(path: Path):
@@ -233,7 +238,7 @@ class Product(Model):
             startswith="pull_",
         )
 
-    def list_capabilities(self, role: Role | None = None, topic: str | None = None, format: str | None = None):
+    def list_capabilities(self, role: Role | None = None, topic: str | None = None, format: str | None = None, mode: Mode | None = None):
         """
         List the Product's generic consumer/producer/trigger/executor capabilities, either declared:
         - in definition.yaml's "consumes","produces","triggers", and "executes" sections
@@ -253,14 +258,19 @@ class Product(Model):
         for r, field in mappings.items():
             for t, caps in getattr(self, field).items():
                 for c in cast(list[Cap], caps):
-                    if (not topic or topic == t) and (not format or format == c.format or c.format is None):
+                    if (not topic or topic == t) and (not format or format == c.format or c.format is None) and (not mode or mode == c.mode):
                         out.add(Capability(topic=t, role=r, mode=c.mode, format=c.format))
 
         # Collect capabilities declared in decorated setup functions
         self.import_python_modules()
         for sf in SetupFunction.get_all("setup"):
             if sf.product == self.name and sf.target_product is None:
-                if (role is None or sf.role == role) and (topic is None or sf.topic == topic) and (format is None or sf.format == format or sf.format is None):
+                if (
+                    (role is None or sf.role == role)
+                    and (topic is None or sf.topic == topic)
+                    and (format is None or sf.format == format or sf.format is None)
+                    and (mode is None or sf.mode == mode)
+                ):
                     # If the setup function is mode-agnostic, consider that the product's capability supports both push and pull
                     if sf.mode is None:
                         for m in ("push", "pull"):
@@ -270,7 +280,7 @@ class Product(Model):
 
         return list(out)
 
-    def generate(self):
+    def scaffold(self):
         print("Scaffold product", self.name)
         # TODO Generate the product boilerplate
         return self
@@ -392,6 +402,7 @@ class Integration(Model):
     format: str | None = None
     documentation_url: str = ""
     settings: list["ProductSetting"] = []
+    description: str = ""
 
     model_config = ConfigDict(extra="allow")
 
@@ -401,11 +412,11 @@ class Integration(Model):
         else:
             return f"{self.product} <-[{self.topic}:{self.mode}]-- {self.target_product} ({self.role})"
 
-    # def __repr__(self):
-    #     return str(self)
+    def __repr__(self):
+        return str(self)
 
     def __hash__(self):
-        return hash((self.product, self.target_product, self.topic, self.role, self.mode, self.format))
+        return hash((self.product, self.target_product, self.topic, self.role, self.mode))
 
     def __eq__(self, value: "Integration"):
         return (
@@ -413,9 +424,14 @@ class Integration(Model):
             and self.target_product == value.target_product
             and self.topic == value.topic
             and self.role == value.role
-            and self.mode == value.mode
-            and self.format == value.format
+            and (self.mode == value.mode or None in (self.mode, value.mode))
         )
+
+    def get_product(self):
+        return get_product(self.product)
+
+    def get_target_product(self):
+        return get_product(self.target_product)
 
     def save(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -479,42 +495,39 @@ class Integration(Model):
             and (self.format == integration.format or self.format is None or integration.format is None)
         )
 
-    def generate(self):
+    def scaffold(self):
         print("Scaffold integration", self.product, "to", self.target_product, self.topic, self.role, self.mode)
-        # TODO: Generate the integration code
+        for i, f in enumerate(self.get_setup_functions("scaffold")):
+            print(f"\n{i + 1}) {f.get_title()}")
+            f.call(integration=self)
         return self
 
-    def add_setup_step(self, title: str, func: Callable | str, order: str | None = None):
+    def add_setup_step(self, title: str, func: Callable | str, order: Literal["first", "last"] | int | None = None):
         """
         Append a setup step to the integration's python code
         """
         import meshroom.decorators
 
-        ast = AST(self.path.with_suffix(".py"))
-        if f := ast.append_function(func):
-            ast.add_imports(Integration, Plug)
-            f.decorate(
-                meshroom.decorators.setup,
-                title=title,
-                order=order,
-                exclude_none=True,
-            )
-        ast.save()
-        return self
+        return self.add_function(func, decorator=meshroom.decorators.setup, title=title, order=order)
 
-    def add_teardown_step(self, title: str, func: Callable | str, order: str | None = None):
+    def add_teardown_step(self, title: str, func: Callable | str, order: Literal["first", "last"] | int | None = None):
         """
         Append a teardown step to the integration's python code
         """
         import meshroom.decorators
 
+        return self.add_function(func, decorator=meshroom.decorators.teardown, title=title, order=order)
+
+    def add_function(self, func: Callable, decorator: Callable, **decorator_kwargs):
+        """
+        Append a function to the integration's python code
+        """
         ast = AST(self.path.with_suffix(".py"))
         if f := ast.append_function(func):
-            ast.add_imports(Integration, Plug)
+            ast.add_imports(Integration, Plug, Tenant)
             f.decorate(
-                meshroom.decorators.teardown,
-                title=title,
-                order=order,
+                decorator,
+                **decorator_kwargs,
                 exclude_none=True,
             )
         ast.save()
@@ -538,14 +551,14 @@ class Integration(Model):
             f.call(plug=plug, integration=self, tenant=tenant)
         print("✓ done\n")
 
-    def get_setup_functions(self, type: Literal["setup", "teardown"] | None = None):
+    def get_setup_functions(self, type: Literal["setup", "teardown", "scaffold"] | None = None):
         """
         List all the setup functions defined for this integration, declared either:
         - via meshroom.decorators.setup(...) decorator at integration-level
+        - via meshroom.decorators.scaffold(...) decorator at integration-level, providing integration scaffolding steps
         - via meshroom.decorators.setup_consumer(...) or meshroom.decorators.setup_producer(...) decorators at product-level
         """
         from meshroom.decorators import SetupFunction
-        from meshroom.generators import generate_setup_function
 
         self.import_python_modules()
 
@@ -556,10 +569,6 @@ class Integration(Model):
         if any(f.target_product for f in funcs):
             funcs = [f for f in funcs if f.target_product or f.keep_when_overloaded]
 
-        # If no setup functions are found, try to generate a SetupFunction from the integration's and product's YAML specs
-        if not funcs and (f := generate_setup_function(self)):
-            funcs.append(f)
-
         return funcs
 
     def import_python_modules(self):
@@ -567,8 +576,8 @@ class Integration(Model):
         Import the integration's python module to collect all setup functions
         Also ensure the product's python modules are imported too
         """
-        import_module(self.path.with_suffix(".py"), package_dir=self.path.parent)
-        get_product(self.product).import_python_modules()
+        import_module(self.path.with_suffix(".py"), package_dir=self.path.parent.parent.parent)
+        self.get_product().import_python_modules()
 
 
 class Tenant(Model):
@@ -823,13 +832,17 @@ def path_in_project(path: str | Path):
     raise ValueError(f"Path {path} is not under the project directory {PROJECT_DIR}")
 
 
-def init_project(path: str | Path):
-    """Initialize a new meshroom project in an empty or existing directory"""
+def init_project(path: str | Path, git: bool | str = True):
+    """Initialize a new meshroom project in an empty or existing directory, optionally backing it with a git repo"""
+    from meshroom.git import git_init
+
     path = Path(path)
     set_project_dir(path)
 
     if path.is_dir() and list(PROJECT_DIR.iterdir()):
         if validate_meshroom_project(PROJECT_DIR):
+            if git:
+                git_init(remote=git or None)
             print("🚫 This meshroom project is already initialized")
             return False
         raise ValueError("Directory is not empty and is not a meshroom project")
@@ -838,6 +851,8 @@ def init_project(path: str | Path):
     PROJECT_DIR.mkdir(parents=True, exist_ok=True)
     (PROJECT_DIR / "products").mkdir(exist_ok=True)
     (PROJECT_DIR / "config").mkdir(exist_ok=True)
+    git_init(remote=git or None)
+    shutil.copy(TEMPLATES_DIR / ".gitignore", PROJECT_DIR / ".gitignore")
 
     print(f"✓ Meshroom project initialized at {PROJECT_DIR.absolute()}")
     return True
@@ -948,10 +963,13 @@ def plug(src_tenant: str, dst_tenant: str, topic: str, mode: Mode | None = None,
         print(f"🚫 Plug {plug}  already exists at {plug.path}")
         return plug
     except ValueError:
+        print(src, dst, src.product, dst.product, topic, mode, format)
         producers = list(list_integrations(src.product, dst.product, topic, "producer", mode=mode, format=format))
         consumers = list(list_integrations(dst.product, src.product, topic, "consumer", mode=mode, format=format))
         triggers = list(list_integrations(src.product, dst.product, topic, "trigger", mode=mode, format=format))
+        print("triggers", triggers)
         executors = list(list_integrations(dst.product, src.product, topic, "executor", mode=mode, format=format))
+        print("executors", executors)
         for producer in producers:
             for consumer in consumers:
                 if producer.matches(consumer):
@@ -981,6 +999,8 @@ def plug(src_tenant: str, dst_tenant: str, topic: str, mode: Mode | None = None,
 
     Consumers found: {consumers or 'None'}
     Producers found: {producers or 'None'}
+    Triggers found: {triggers or 'None'}
+    Executors found: {executors or 'None'}
 
     You may want to scaffold one via
 
@@ -996,7 +1016,6 @@ def unplug(src_tenant: str, dst_tenant: str, topic: str, mode: Mode | None = Non
         print(f"❌ Plug {src_tenant} --[{topic}:{mode}]-> {dst_tenant} not found")
 
 
-@cache
 def list_integrations(
     product: str | None = None,
     target_product: str | None = None,
@@ -1005,7 +1024,7 @@ def list_integrations(
     mode: Mode | None = None,
     format: str | None = None,
 ) -> list[Integration]:
-    out: set[Integration] = set()
+    out: list[Integration] = []
     path = PROJECT_DIR / "products"
     for product_dir in path.iterdir() if product is None else [get_product(product).path]:
         if not product_dir.is_dir():
@@ -1021,7 +1040,7 @@ def list_integrations(
                     if integration_file.is_file() and integration_file.suffix in (".yml", ".yaml"):
                         i = Integration.load(integration_file)
                         if (not topic or i.topic == topic) and (not role or i.role == role) and (not mode or i.mode == mode) and (not format or i.format == format):
-                            out.add(i)
+                            out.append(i)
 
         # 2) Look for matching pairs of generic product capabilities, with lower priority
         for a in get_product(product_dir.name).list_capabilities(role=role, topic=topic, format=format):
@@ -1030,9 +1049,10 @@ def list_integrations(
                     continue
 
                 for b in get_product(target_product_dir.name).list_capabilities(topic=topic, format=format):
+                    print("\n", product_dir.name, target_product_dir.name, "\n", a, b, "\n")
                     if a.matches(b):
                         # Yield generic Integration objects for matching capabilities
-                        out.add(
+                        out.append(
                             Integration(
                                 product=product_dir.name,
                                 target_product=target_product_dir.name,
@@ -1042,7 +1062,8 @@ def list_integrations(
                                 format=a.format or b.format,
                             )
                         )
-    return list(out)
+
+    return list(set(sorted(out, key=lambda i: (i.product, i.target_product or "", i.topic, i.role, i.mode or "", i.format or ""))))
 
 
 @cache
@@ -1096,6 +1117,7 @@ def scaffold_integration(
     topic: str,
     role: Role = "producer",
     mode: Mode = "push",
+    format: str | None = None,
     **kwargs,
 ):
     fn = f"{topic}_{role}" if mode in (None, "push") else f"{topic}_{role}_{mode}"
@@ -1106,7 +1128,7 @@ def scaffold_integration(
         return Integration.load(path)
 
     path.parent.mkdir(parents=True, exist_ok=True)
-    i = Integration.load(path).generate(**kwargs).save()
+    i = Integration(product=product, target_product=target_product, topic=topic, role=role, mode=mode, format=format).scaffold(**kwargs).save()
 
     print(f"✓ Integration {product} -> {target_product} {topic} {role} {mode} scaffolded at {path}")
 
@@ -1119,9 +1141,22 @@ def scaffold_product(name: str, **kwargs):
         print(f"🚫 Product {name} already exists, see {path}/definition.yaml")
         return Product.load(path)
 
-    p = create_product(path, **kwargs).generate().save()
+    p = create_product(path, **kwargs).scaffold().save()
     print(f"✓ Product {name} scaffolded at {path}/definition.yaml")
     return p
+
+
+def scaffold_capability(product: str, topic: str, role: Role, mode: Mode = "push", format: str | None = None, **kwargs):
+    p = get_product(product)
+    if cap := p.list_capabilities(role, topic, format, mode):
+        print(f"🚫 Product '{product}' already has capability {cap[0]}")
+        return cap[0]
+
+    p.add_capability(role, topic, mode, format)
+    p.save()
+    out = p.list_capabilities(role, topic, format, mode)[0]
+    print(f"✓ Capability {out} scaffolded for Product '{product}'")
+    return out
 
 
 def create_product(name: str, **kwargs):

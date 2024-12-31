@@ -5,3 +5,14 @@ settings:
     secret: true
   - name: region
     default: FRA1
+executes:
+  actions:
+      - action_id:
+        params:
+  workflow:
+      - playbook_id:
+        context:
+          alert_uuid
+consumes:
+  events:
+    - {}
