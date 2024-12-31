@@ -101,7 +101,7 @@ class Product(Model):
     model_config = ConfigDict(extra="allow")
 
     @field_validator("name")
-    def validate_name(self, v):
+    def validate_name(cls, v):
         if not re.match(r"^\w+$", v):
             raise ValueError("Invalid product name. Only alphanumeric characters, and underscores are allowed.")
         return v

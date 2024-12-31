@@ -2,6 +2,8 @@ import asyncio
 from pathlib import Path
 import re
 
+from pydantic import ValidationError
+
 from meshroom.utils import tabulate
 from meshroom.model import Mode, Plug, ProductSetting, Role, Tenant
 import click
@@ -221,7 +223,11 @@ def create_product(
     name: str,
 ):
     """Scaffold a new Product"""
-    model.scaffold_product(name)
+    try:
+        model.scaffold_product(name)
+    except ValidationError as e:
+        click.echo(e)
+        exit(1)
 
 
 @create.command(name="capability")
@@ -371,7 +377,7 @@ def _configure_tenant(t: Tenant, secrets: dict[str, str] = {}):
                 t.set_secret(setting.name, secrets[setting.name])
             else:
                 _configure_secret(t, setting)
-        else:
+        elif sys.stdin.isatty():  # only prompt if stdin is a tty
             t.settings[setting.name] = _prompt_setting(setting, default=t.settings.get(setting.name))
             t.save()
 
@@ -383,12 +389,13 @@ def _configure_plug(p: Plug, secrets: dict[str, str] = {}):
                 p.set_secret(setting.name, secrets[setting.name])
             else:
                 _configure_secret(p, setting)
-        elif end == "src":
-            p.src_config[setting.name] = _prompt_setting(setting, default=p.src_config.get(setting.name))
-            p.save()
-        else:
-            p.dst_config[setting.name] = _prompt_setting(setting, default=p.dst_config.get(setting.name))
-            p.save()
+        elif sys.stdin.isatty():  # only prompt if stdin is a tty
+            if end == "src":
+                p.src_config[setting.name] = _prompt_setting(setting, default=p.src_config.get(setting.name))
+                p.save()
+            else:
+                p.dst_config[setting.name] = _prompt_setting(setting, default=p.dst_config.get(setting.name))
+                p.save()
 
 
 def _configure_secret(t: Tenant | Plug, setting: ProductSetting):

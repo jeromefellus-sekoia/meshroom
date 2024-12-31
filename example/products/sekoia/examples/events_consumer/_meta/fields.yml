@@ -1,0 +1,6 @@
+# Here you can declare non-standard fields that will enrich the event's taxonomy
+
+dns.size_in_char:
+  description: ''
+  name: dns.size_in_char
+  type: number
