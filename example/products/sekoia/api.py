@@ -1,6 +1,14 @@
+from datetime import datetime, timedelta
+import json
 from pathlib import Path
-from time import sleep
+import re
+import ssl
+import sys
+from time import sleep, time
+from uuid import uuid4
 from requests import HTTPError, Session
+import requests
+import websocket
 
 from .utils import exclude_nones
 
@@ -10,6 +18,7 @@ class SekoiaAPI(Session):
 
     def __init__(self, region: str, api_key: str):
         super().__init__()
+        self.api_key = api_key
         self.headers.update({"Authorization": f"Bearer {api_key}"})
         region = region.lower()
         if region == "fra1":
@@ -265,3 +274,144 @@ class SekoiaAPI(Session):
     def create_ssh_key(self):
         """Create an SSH key for pulling custom integrations from Git"""
         return self.post("/v1/symphony/ssh-keys/").json()
+
+    def get_events(self, terms: dict, earliest: datetime | None = None, latest: datetime | None = None) -> dict:
+        """Return a page of events matching the given terms"""
+        job = self.post(
+            "v1/sic/conf/events/search/jobs",
+            json={
+                "term": " AND ".join([f'{k}: "{v}"' for k, v in terms.items()]),
+                "earliest_time": (earliest or (datetime.utcnow() - timedelta(hours=1))).isoformat() + "Z",
+                "latest_time": (latest or datetime.utcnow().isoformat()) + "Z",
+                "visible": True,
+                "only_eternal": False,
+            },
+        ).json()
+
+        for msg in self.live_api():
+            if msg.get("type") == "search-job" and msg.get("action") == "updated" and msg.get("attributes", {}).get("uuid") == job["uuid"]:
+                if msg["attributes"]["updated"]["status"] == "done":
+                    break
+
+        return self.get(f"v1/sic/conf/events/search/jobs/{job['uuid']}/events?limit=50").json()
+
+    def watch_events(self, intake_uuid: str | None = None, earliest: datetime | None = None):
+        """Subscribe to events for the given intake"""
+        earliest = earliest or (datetime.utcnow() - timedelta(minutes=5))
+        print(f"Watching events received since {earliest} {f'on intake {intake_uuid}' if intake_uuid else ''}", file=sys.stderr)
+        terms = {}
+        if intake_uuid:
+            terms["sekoiaio.intake.uuid"] = intake_uuid
+        while True:
+            evts = self.get_events(terms, earliest)["items"]
+            evts = sorted(evts, key=lambda x: datetime.fromisoformat(x["timestamp"]))
+
+            # Move the timestamp cursor one millisecond after the last received event
+            try:
+                earliest = (datetime.fromisoformat(evts[-1]["timestamp"]) + timedelta(milliseconds=1)).replace(tzinfo=None)
+            except Exception:
+                ...
+
+            yield from evts
+            sleep(2)
+
+    def live_api(self):
+        """Return a live API websocket instance"""
+        return LiveApi(base_url=self.base_url, api_key=self.api_key)
+
+    def send_event_http(self, intake_key: str, message: str):
+        """Send one event to SEKOIA.IO by using the http intake transport."""
+        url = "https://intake.sekoia.io"  # TODO: derive from region when not on FRA1
+        return requests.post(
+            url,
+            json={
+                "message": message,
+                "json": message,
+                "intake_key": intake_key,
+            },
+        ).text
+
+    def get_action_uuid(self, action: str):
+        """Return a playbook action's UUID given its name and optionally its module UUID"""
+        try:
+            return self.get("/v1/symphony/actions", json={"match[name]": action}).json()["items"][0]["uuid"]
+        except IndexError:
+            return None
+
+    def get_task(self, task_id: str):
+        """Return a task's status given its UUID"""
+        return self.get(f"/v1/tasks/{task_id}").json()
+
+    def get_community_uuid(self):
+        """Return the community UUID of the current user"""
+        return self.get("/v1/me").json()["community"]
+
+    def list_notebooks(self):
+        """Return a list of notebooks"""
+        return self.get("/v1/notebooks", params={"trashed": "false"}).json()["items"]
+
+    def trigger_action(self, action_uuid: str, data: dict | None = None):
+        """Trigger a playbook action"""
+
+        print(f"Run playbook action {action_uuid} with arguments ({data})")
+        payload = {
+            "account_uuid": None,
+            "notebook_uuid": self.list_notebooks()[0]["uuid"],
+            "action_uuid": action_uuid,
+            "slug": f"playbook_action_{time()}",
+            "community_uuid": self.get_community_uuid(),
+            "arguments": data or {},
+        }
+
+        res = self.post(f"/v1/notebooks/actions/{action_uuid}/run", json=payload).json()
+        print("Started as task", res["task_id"])
+        task_id = res["task_id"]
+        uuid = res["uuid"]
+
+        sleep(0.6)
+        while self.get_task(task_id)["status"] not in ("FAILED", "FINISHED"):
+            print(".", end="", flush=True)
+            sleep(2)
+        sleep(0.1)
+
+        t = self.get_task(task_id)
+        if t["status"] == "FAILED":
+            raise ValueError(t["error"])
+
+        return self.get(f"v1/notebooks/queries/runs/{uuid}").json()
+
+
+class LiveApi:
+    """
+    A websocket LiveAPI client for Sekoia.io, allowing to iterate over liveapi notifications
+    """
+
+    def __init__(self, base_url: str = "https://app.sekoia.io", api_key: str = "", timeout: int = 3):
+        # LiveAPI websocket is available at /live from the base url
+        if base_url == "https://api.sekoia.io":
+            self.url = "wss://live.sekoia.io"
+        else:
+            self.url = re.sub(r"(.*://[^/]+)(/.*)?", r"\1/live", re.sub(r"^http", "ws", base_url))
+        self.api_key = api_key
+        self._closed = False
+        self.timeout = timeout
+
+    def __iter__(self):
+        """Iterate over the liveapi notifications"""
+        ws = websocket.WebSocket(sslopt={"cert_reqs": ssl.CERT_NONE})
+        ws.connect(
+            self.url,
+            cookie=f"access_token_cookie={self.api_key}",
+        )
+        try:
+            ws.send('{"action": "upgrade"}')
+            while not self._closed:
+                ws.settimeout(0.1)
+                msg = json.loads(ws.recv())
+                yield msg
+        except websocket.WebSocketTimeoutException:
+            ws.close()
+
+    def close(self):
+        """Close the websocket connection, stopping the iteration"""
+        self._closed = True

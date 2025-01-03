@@ -1,9 +1,7 @@
-import asyncio
 from pathlib import Path
-import re
-
 from pydantic import ValidationError
 
+from meshroom.interaction import debug, info, error
 from meshroom.utils import tabulate
 from meshroom.model import Mode, Plug, ProductSetting, Role, Tenant
 import click
@@ -22,7 +20,7 @@ def meshroom(path):
         return
 
     if not model.validate_meshroom_project(path):
-        click.echo("Directory is not a valid Meshroom project")
+        error("Directory is not a valid Meshroom project")
         exit(1)
 
 
@@ -33,7 +31,7 @@ def init(path: str):
     try:
         model.init_project(model.get_project_dir() / path if str(Path(path).absolute()) != path else path)
     except ValueError as e:
-        click.echo(e)
+        error(e)
         exit(1)
 
 
@@ -91,7 +89,7 @@ def list_integrations(
             )
         )
     except ValueError as e:
-        click.echo(e)
+        error(e)
         exit(1)
 
 
@@ -177,7 +175,7 @@ def plug(
             secrets={secret: sys.stdin.readline().strip() for secret in read_secret},
         )
     except ValueError as e:
-        click.echo(e)
+        error(e)
         exit(1)
 
 
@@ -219,14 +217,16 @@ def create_integration(
 
 @create.command(name="product")
 @click.argument("name")
+@click.option("--from", "template", help="Path to a templates/ subdirectory to scaffold the product from")
 def create_product(
     name: str,
+    template: str | None = None,
 ):
-    """Scaffold a new Product"""
+    """Scaffold a new Product, optionally from a template"""
     try:
-        model.scaffold_product(name)
+        model.scaffold_product(name, template=template)
     except ValidationError as e:
-        click.echo(e)
+        error(e)
         exit(1)
 
 
@@ -256,7 +256,7 @@ def pull(
     try:
         model.get_product(product).pull()
     except ValueError as e:
-        click.echo(e)
+        error(e)
         exit(1)
 
 
@@ -276,10 +276,10 @@ def add(
             tenant,
             secrets={secret: sys.stdin.readline().strip() for secret in read_secret},
         )
-        print("✓ Tenant created")
+        info("✓ Tenant created")
 
     except ValueError as e:
-        click.echo(e)
+        error(e)
         exit(1)
 
 
@@ -297,10 +297,10 @@ def configure(
             t,
             secrets={secret: sys.stdin.readline().strip() for secret in read_secret},
         )
-        print("✓ Tenant configured")
+        info("✓ Tenant configured")
 
     except ValueError as e:
-        click.echo(e)
+        error(e)
         exit(1)
 
 
@@ -331,41 +331,129 @@ def unplug(
 
 
 @meshroom.command()
-@click.argument("src_tenant")
-@click.argument("dst_tenant")
 @click.argument("topic")
-@click.option("--mode", type=click.Choice(Mode.__args__), default="push")
+@click.argument("tenant")
+@click.argument("dst_tenant", required=False)
+@click.option("--mode", type=click.Choice(Mode.__args__))
 def watch(
-    src_tenant: str,
-    dst_tenant: str,
     topic: str,
-    mode: Mode,
+    tenant: str,
+    dst_tenant: str | None,
+    mode: Mode | None,
 ):
-    """Inspect data flowing through a Plug"""
+    """Inspect data flowing through a Plug or a Tenant"""
     try:
-        asyncio.run(model.watch(src_tenant, dst_tenant, topic, mode))
+        for msg in model.watch(tenant, dst_tenant, topic, mode):
+            print(msg)
     except ValueError as e:
-        click.echo(e)
+        error(e)
+        exit(1)
+    except KeyboardInterrupt:
+        ...
+
+
+@meshroom.command()
+@click.argument("topic")
+@click.argument("tenant")
+@click.argument("dst_tenant", required=False)
+@click.option("--mode", type=click.Choice(Mode.__args__))
+def produce(
+    topic: str,
+    tenant: str,
+    dst_tenant: str | None = None,
+    mode: Mode | None = None,
+):
+    """Produce data through a Plug or to a Tenant"""
+    try:
+        debug("Waiting for events on stdandard input...\n")
+        for line in sys.stdin:
+            print(model.produce(tenant, dst_tenant, topic, data=line.strip(), mode=mode))
+    except ValueError as e:
+        error(e)
         exit(1)
 
 
 @meshroom.command()
-@click.argument("src_tenant")
-@click.argument("dst_tenant")
 @click.argument("topic")
-@click.option("--mode", type=click.Choice(Mode.__args__), default="push")
-def emulate(
-    src_tenant: str,
-    dst_tenant: str,
+@click.argument("tenant")
+@click.argument("dst_tenant", required=False)
+@click.option("--mode", type=click.Choice(Mode.__args__))
+@click.option("--param", "-p", multiple=True)
+def execute(
     topic: str,
-    mode: Mode,
+    tenant: str,
+    dst_tenant: str | None = None,
+    mode: Mode | None = None,
+    param: list[str] = [],
 ):
-    """Emulate data flowing through a Plug"""
+    """Execute an executor exposed by a Plug's or a Tenant's topic"""
     try:
-        for line in sys.stdin:
-            model.emulate(src_tenant, dst_tenant, topic, mode, line.strip())
+        print(
+            model.execute(
+                tenant,
+                dst_tenant,
+                topic,
+                data={k: v for k, v in (p.split("=") for p in param)},
+                mode=mode,
+            )
+        )
     except ValueError as e:
-        click.echo(e)
+        error(e)
+        exit(1)
+
+
+@meshroom.command()
+@click.argument("topic")
+@click.argument("tenant")
+@click.argument("dst_tenant", required=False)
+@click.option("--mode", type=click.Choice(Mode.__args__))
+@click.option("--param", "-p", multiple=True)
+def trigger(
+    topic: str,
+    tenant: str,
+    dst_tenant: str | None = None,
+    mode: Mode | None = None,
+    param: list[str] = [],
+):
+    """Trigger an trigger exposed by a Plug's or a Tenant's topic"""
+    try:
+        print(
+            model.trigger(
+                tenant,
+                dst_tenant,
+                topic,
+                data={k: v for k, v in (p.split("=") for p in param)},
+                mode=mode,
+            )
+        )
+    except ValueError as e:
+        error(e)
+        exit(1)
+
+
+@meshroom.command()
+@click.argument("product", required=False)
+@click.argument("target_product", required=False)
+@click.argument("topic", required=False)
+@click.argument("role", type=click.Choice(Role.__args__), required=False)
+@click.option("--mode", "-m", type=click.Choice(Mode.__args__))
+@click.option("--format", "-f")
+def publish(
+    product: str,
+    target_product: str | None = None,
+    topic: str | None = None,
+    role: Role | None = None,
+    mode: Mode | None = None,
+    format: str | None = None,
+):
+    """
+    Publish a specific integration, a given product's integrations or all integrations at once
+    according to the @publish decorators eventually set in the integrations' code
+    """
+    try:
+        model.publish(product, target_product, topic, role, mode, format)
+    except ValueError as e:
+        error(e)
         exit(1)
 
 

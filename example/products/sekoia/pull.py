@@ -2,7 +2,9 @@ import json
 from pathlib import Path
 import re
 from meshroom.model import Integration, Plug, ProductSetting, create_product, get_integration, get_product
-from meshroom.utils import cp_rf, git_pull
+from meshroom.utils import overwrite_directory
+from meshroom.git import Git
+from meshroom.interaction import info
 import yaml
 
 
@@ -10,7 +12,7 @@ def pull_automation_library(path: Path):
     """Pull automation library from Sekoia's public automation-library repo"""
     sekoia = get_product("sekoia")
     path = path / "automation-library"
-    git_pull("https://github.com/SEKOIA-IO/automation-library.git", path)
+    Git(path).pull("https://github.com/SEKOIA-IO/automation-library.git")
 
     # Collect all automation library manifests
     for manifest in path.rglob("manifest.json"):
@@ -25,7 +27,7 @@ def pull_automation_library(path: Path):
         try:
             product = get_product(product_name)
         except ValueError:
-            print("Create product", product_name)
+            info("Create product", product_name)
             product = create_product(product_name)
 
             if description := manifest_data.get("description"):
@@ -44,11 +46,10 @@ def pull_automation_library(path: Path):
             product.save()
 
         # Copy automation files to the integration folder
-        integration_path = sekoia.path / "integrations" / product_name / "dist" / "automation"
-        cp_rf(module, integration_path)
+        overwrite_directory(module, sekoia.path / "integrations" / product_name / "dist" / "automation")
 
 
-def get_automation_module(repo: Path, uuid: str):
+def get_automation_module_by_uuid(repo: Path, uuid: str):
     """Get an automation module's path from Sekoia's public automation-library repo given its UUID"""
     repo = repo / "automation-library"
     for manifest in repo.rglob("manifest.json"):
@@ -59,9 +60,9 @@ def get_automation_module(repo: Path, uuid: str):
     return None
 
 
-def get_automation_connector(repo: Path, module_uuid: str, uuid: str) -> dict | None:
+def get_automation_connector_by_uuid(repo: Path, module_uuid: str, uuid: str) -> dict | None:
     """Get automation connector from Sekoia's public automation-library repo given its UUID"""
-    module = get_automation_module(repo, module_uuid)
+    module = get_automation_module_by_uuid(repo, module_uuid)
     if not module:
         return None
     for manifest in module.rglob("connector_*.json"):
@@ -75,7 +76,7 @@ def get_automation_connector(repo: Path, module_uuid: str, uuid: str) -> dict | 
 def pull_intake_formats(path: Path):
     """Pull intake formats from Sekoia's public intakes repo"""
     path = path / "intake-formats"
-    git_pull("https://github.com/SEKOIA-IO/intake-formats.git", path)
+    Git(path).pull("https://github.com/SEKOIA-IO/intake-formats.git")
 
     # Collect all intake formats manifests
     for manifest in path.rglob("_meta/manifest.yml"):
@@ -108,7 +109,7 @@ def pull_intake_formats(path: Path):
         # Map the intake format to the corresponding automation module if any
         # (automation library being the prefered source of truth for the product name)
         # If no automation module is found, the product name is derived from the intake format's slug
-        if automation_module_uuid and (automation_module := get_automation_module(path.parent, manifest_data["automation_module_uuid"])):
+        if automation_module_uuid and (automation_module := get_automation_module_by_uuid(path.parent, manifest_data["automation_module_uuid"])):
             with open(automation_module / "manifest.json", "r") as file:
                 automation_module_data = json.load(file)
                 settings = ProductSetting.from_json_schema(
@@ -123,7 +124,7 @@ def pull_intake_formats(path: Path):
         try:
             product = get_product(product_name)
         except ValueError:
-            print("Create product", product_name)
+            info("Create product", product_name)
             product = create_product(product_name)
 
             if description := manifest_data.get("description"):
@@ -141,7 +142,7 @@ def pull_intake_formats(path: Path):
 
         # Copy intake format files to the integration folder
         i = Integration(product="sekoia", target_product=product_name, topic="events", role="consumer", mode=mode)
-        cp_rf(manifest.parent.parent, i.path / "dist" / "intake-format")
+        overwrite_directory(manifest.parent.parent, i.path / "dist" / "intake-format")
 
         # Create the Sekoia end of the integration
         i.mode = mode
@@ -156,10 +157,10 @@ def pull_intake_formats(path: Path):
                 dst.documentation_url = f"https://docs.sekoia.io/operation_center/integration_catalog/uuid/{uuid}/#instructions-on-the-3rd-party-solution"
                 dst.add_setup_step("Follow syslog forwarding instructions", syslog_forwarding_instructions)
                 dst.save()
-                print("✓ Created integration", dst)
+                info("✓ Created integration", dst)
 
         if mode == "pull":
-            connector = get_automation_connector(path.parent, automation_module_uuid, automation_connector_uuid)
+            connector = get_automation_connector_by_uuid(path.parent, automation_module_uuid, automation_connector_uuid)
             connector_settings = [
                 s
                 for s in ProductSetting.from_json_schema(
@@ -177,7 +178,7 @@ def pull_intake_formats(path: Path):
                 i.settings.append(ProductSetting(name="connector_configuration", type="object", properties=connector_settings))
 
         i.save()
-        print("✓ Created integration", i)
+        info("✓ Created integration", i)
 
 
 # 3rd-party setup steps stubs
@@ -185,9 +186,13 @@ def pull_intake_formats(path: Path):
 
 def syslog_forwarding_instructions(integration: Integration, plug: Plug):
     """Manual setup instructions for the 3rd party to forward syslog events to Sekoia.io"""
+    from meshroom import interaction
 
-    print(f"To setup {plug}, please follow {integration.documentation_url}")
-    print("You'll be asked for the following intake key :", plug.get_secret("intake_key"))
-    input("Press Enter when done")
+    interaction.box(
+        f"To setup {plug}, please follow {integration.documentation_url}",
+        f"You'll be asked for the following intake key : {plug.get_secret('intake_key')}",
+        block=True,
+    )
+    input()
 
     plug.save()

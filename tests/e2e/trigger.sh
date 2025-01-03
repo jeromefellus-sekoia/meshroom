@@ -2,7 +2,6 @@
 set -e
 set +x
 
-
 cd $(dirname $0)/../..
 
 
@@ -30,14 +29,19 @@ meshroom create capability cisa_gov action executor --mode=push --format=json
 set +e
 pass MESHROOM_SEKOIA_API_KEY | meshroom add sekoia -s API_KEY
 set -e
+
 meshroom add cisa_gov
 meshroom plug sekoia cisa_gov action
 
 # Add git remote to all syncing custom module from git repo
-git add .
-git commit -a -m "Initial commit"
-git remote add origin git@github.com:jeromefellus-sekoia/test-meshroom-custom-integration-cisa.git
-git branch
-git push -f -u origin master
+# set +e
+# git add .
+# git commit -a -m "Initial commit"
+# git remote add origin git@github.com:jeromefellus-sekoia/test-meshroom-custom-integration-cisa.git
+# git branch
+# git push -f -u origin master
+# set -e
 
-meshroom up
+# meshroom up
+
+meshroom trigger action sekoia cisa_gov

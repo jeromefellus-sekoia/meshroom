@@ -93,24 +93,6 @@ def tabulate(
     return _tabulate(out, headers=columns or "keys", tablefmt="rounded_outline")
 
 
-def git_pull(url: str, path: Path):
-    if path.is_dir() and (path / ".git").is_dir():
-        check_call(["git", "pull"], cwd=path)
-    else:
-        check_call(["git", "clone", url, path])
-
-
-def git_is_private(url: str):
-    """Check if a remove git repository is private"""
-    try:
-        # Ensure we use https:// repo URL and pass dummy credentials
-        url = re.sub(r"^git@([^:]+):", r"https://dummy:password@\1/", url)
-        check_call(["git", "ls-remote", url])
-        return False
-    except Exception:
-        return True
-
-
 def import_module(path: Path | str, package_dir: Path | str | None = ""):
     path = Path(path)
     package_dir = package_dir or path.parent
@@ -134,9 +116,9 @@ def list_functions_from_module(path: Path | str, startswith: str = ""):
     return []
 
 
-def cp_rf(source_path: Path | str, dst_path: Path | str):
-    """Force-copy the source_path to the dst_path, removing all existing files in the dst_path"""
-    dst_path = Path(dst_path)
-    dst_path.mkdir(parents=True, exist_ok=True)
-    shutil.rmtree(dst_path, ignore_errors=True)
-    shutil.copytree(source_path, dst_path)
+def overwrite_directory(src_dir: Path | str, dst_dir: Path | str):
+    """Force-copy the :src_dir to the :dst_dir, removing all existing files in the :dst_dir"""
+    dst_dir = Path(dst_dir)
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    shutil.rmtree(dst_dir, ignore_errors=True)
+    shutil.copytree(src_dir, dst_dir)

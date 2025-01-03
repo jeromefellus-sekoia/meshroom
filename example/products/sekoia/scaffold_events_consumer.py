@@ -1,5 +1,4 @@
 import json
-import shutil
 from uuid import uuid4
 import yaml
 
@@ -12,9 +11,10 @@ from .api import SekoiaAPI
 @scaffold_consumer("events")
 def scaffold_custom_events_consumer(integration: Integration):
     """Scaffold a new events consumer backed by a custom Sekoia.io intake format"""
+    from meshroom.template import generate_files_from_template
 
     # NOTE: We can't leverage the sekoia automation SDK here since it is Pydantic-v1 based, which conflicts with Meshroom's Pydantic-v2
-    #       so let's scaffold module files by ourself from static templates in examples/
+    #       so let's scaffold module files by ourself from static templates/
 
     name = integration.target_product
     path = integration.path.parent / "dist" / "formats" / name
@@ -44,25 +44,20 @@ import json
         # Then we can instanciate the actual intake
         integration.add_setup_step(f"Create intake '{name}'", create_intake_key, order=3)
 
-    # Scaffold files from examples/events_consumer when they don't exist
+    # Scaffold files from templates/events_consumer when they don't exist
     if integration.mode == "pull":
-        example_path = integration.get_product().path / "examples/events_consumer_pull"
+        example_path = integration.get_product().path / "templates/events_consumer_pull"
     else:
-        example_path = integration.get_product().path / "examples/events_consumer"
+        example_path = integration.get_product().path / "templates/events_consumer"
 
-    for fn in example_path.rglob("*.*"):
-        dst_file = path / fn.relative_to(example_path)
-        if fn.is_file() and (not dst_file.is_file() or dst_file.read_text() == ""):
-            dst_file.parent.mkdir(parents=True, exist_ok=True)
-
-            print("    Generate", fn)
-            if fn.suffix == ".png":
-                shutil.copy(fn, dst_file)
-            else:
-                dst_file.write_text(
-                    # Replace format UUID placeholder with actual UUID
-                    fn.read_text().replace("{{UUID}}", uuid).replace("{{NAME}}", name)
-                )
+    generate_files_from_template(
+        example_path,
+        path,
+        {
+            "{{UUID}}": uuid,
+            "{{NAME}}": name,
+        },
+    )
 
     # Update the integration's YAML definition with the new intake format UUID
     if not getattr(integration, "intake_format_uuid", None):
@@ -73,6 +68,8 @@ import json
 
 def create_custom_intake_format(integration: Integration, plug: Plug, tenant: Tenant):
     """A setup hook that setup a custom Sekoia.io intake format from integration's files"""
+    from meshroom.interaction import info
+
     api = SekoiaAPI(
         tenant.settings.get("region", "fra1"),
         tenant.get_secret("API_KEY"),
@@ -119,27 +116,27 @@ def create_custom_intake_format(integration: Integration, plug: Plug, tenant: Te
         automation_module_uuid=manifest.get("automation_module_uuid") or integration.intake_format_uuid if integration.mode == "pull" else None,
         automation_connector_uuid=manifest.get("automation_connector_uuid") or integration.intake_format_uuid if integration.mode == "pull" else None,
     )
-    print(f"✓ Custom intake format {name} successfully pushed")
+    info(f"✓ Custom intake format {name} successfully pushed")
 
 
 def git_push_automation_module(integration: Integration):
     """A setup hook that pushes the automation module to a git repo"""
-    from meshroom.git import git_push
+    from meshroom.git import Git
+    from meshroom.interaction import log
 
     name = integration.target_product
     path = integration.path.parent / "dist" / "formats" / name
-    if git_push(True, path, f"Update {name} automation module"):
-        print(f"Automation module {name} successfully pushed to git repo")
+    if Git(path).push(True, ".", f"Update {name} automation module"):
+        log(f"Automation module {name} successfully pushed to git repo")
     else:
-        print(f"Automation module {name} is up-to-date in git repo")
+        log(f"Automation module {name} is up-to-date in git repo")
 
 
 def update_playbook_module_from_git(integration: Integration, tenant: Tenant):
     """A setup hook that syncs an integration's automation module from the git repo"""
-    from meshroom.git import git_get_remote, git_get_branch
+    from meshroom.git import Git
     from meshroom.model import get_project_dir
     from uuid import uuid4
-    import re
 
     name = integration.target_product
     path = integration.path.parent / "dist" / "formats" / name
@@ -148,8 +145,10 @@ def update_playbook_module_from_git(integration: Integration, tenant: Tenant):
         tenant.get_secret("API_KEY"),
     )
 
-    # Ensure the git URL is in HTTPS scheme
-    https_url = re.sub(r"^git@(.+):(.+?)/(.+?)(?:\.git)?$", r"https://\1/\2/\3", git_get_remote())
-
     # Trigger a pull of the automation module's code from the git repo
-    api.pull_custom_integration(https_url, git_get_branch(), path.relative_to(get_project_dir()).as_posix(), str(uuid4()))
+    api.pull_custom_integration(
+        Git().get_remote(scheme="https"),
+        Git().get_branch(),
+        path.relative_to(get_project_dir()).as_posix(),
+        str(uuid4()),
+    )

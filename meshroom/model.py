@@ -1,18 +1,20 @@
-import asyncio
-from dataclasses import field
 from functools import cache
+import json
 import logging
 from pathlib import Path
 from re import Pattern
 import re
+import sys
 from typing import Any, Callable, Generator, Literal, cast
 from pydantic import BaseModel, ConfigDict, field_validator
 import yaml
 import shutil
 
-from meshroom import secrets
+from meshroom import interaction, secrets
 from meshroom.ast import AST
+from meshroom.template import generate_files_from_template
 from meshroom.utils import import_module, list_functions_from_module
+from meshroom.interaction import debug, info, log, error
 
 Role = Literal["consumer", "producer", "trigger", "executor"]
 Mode = Literal["push", "pull"]
@@ -98,7 +100,9 @@ class Product(Model):
     triggers: dict[str, list[Cap]] = {}
     executes: dict[str, list[Cap]] = {}
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(
+        extra="allow",
+    )
 
     @field_validator("name")
     def validate_name(cls, v):
@@ -118,7 +122,7 @@ class Product(Model):
         return Product.model_validate(definition)
 
     def save(self):
-        definition = self.model_dump()
+        definition = json.loads(self.model_dump_json(exclude_none=True, exclude_defaults=True))
         self.path.mkdir(parents=True, exist_ok=True)
         with open(self.path / "definition.yaml", "w") as f:
             yaml.safe_dump(definition, f)
@@ -280,9 +284,14 @@ class Product(Model):
 
         return list(out)
 
-    def scaffold(self):
-        print("Scaffold product", self.name)
-        # TODO Generate the product boilerplate
+    def scaffold(self, template: str | Path):
+        template = Path(TEMPLATES_DIR / "product" / template)
+        if not template.is_dir():
+            raise ValueError(f"Template {template} not found\nAvailable templates are: {'\n'.join([f'- {t}' for t in TEMPLATES_DIR.glob('product/*')])}")
+
+        info("Scaffold product", self.name, "from", template)
+        generate_files_from_template(template, self.path, {"{{NAME}}": self.name}, overwrite_files=True)
+
         return self
 
     def pull(self):
@@ -293,14 +302,14 @@ class Product(Model):
         (PROJECT_DIR / "mirrors" / self.name).mkdir(parents=True, exist_ok=True)
         if funcs := self.list_pull_handlers():
             for f in funcs:
-                print(f"- Pull {self.name} via {f.__name__}")
+                info(f"- Pull {self.name} via {f.__name__}")
                 try:
                     f(path=PROJECT_DIR / "mirrors" / self.name)
                 except Exception:
                     logging.error("Pull failed :", exc_info=True)
                 print()
         else:
-            return print("🚫 Nothing to do")
+            return debug("🚫 Nothing to do")
 
     def import_python_modules(self):
         """
@@ -308,6 +317,20 @@ class Product(Model):
         """
         for module in self.path.glob("*.py"):
             import_module(module, package_dir=self.path)
+
+    def get_setup_functions(self, type: Literal["setup", "teardown", "scaffold", "watch"] | None = None):
+        """
+        List all the setup functions defined for this product, declared either:
+        - via meshroom.decorators.setup_consumer(...) or meshroom.decorators.setup_producer(...) decorators
+        - via meshroom.decorators.watch(...) decorator
+        Matching setup functions are those whose target_product is None
+        """
+        from meshroom.decorators import SetupFunction
+
+        self.import_python_modules()
+
+        # Sort the setup functions by their declared order
+        return sorted(sf for sf in SetupFunction.get_all(type) if sf.match(self) and sf.target_product is None)
 
 
 class ProductSetting(Model):
@@ -403,8 +426,11 @@ class Integration(Model):
     documentation_url: str = ""
     settings: list["ProductSetting"] = []
     description: str = ""
+    is_generic: bool = False
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(
+        extra="allow",
+    )
 
     def __str__(self):
         if self.role in ("producer", "trigger"):
@@ -436,13 +462,13 @@ class Integration(Model):
     def save(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with open(self.path.with_suffix(".yml"), "w") as f:
-            yaml.safe_dump(self.model_dump(), f)
+            yaml.safe_dump(self.model_dump(exclude={"is_generic"}), f)
         return self
 
     @staticmethod
     def load(filepath: Path):
         filepath = path_in_project(filepath)
-        if not filepath.with_suffix(".yml").is_file():
+        if not (filepath.with_suffix(".yml").is_file() or filepath.with_suffix(".yaml").is_file()) or filepath.parent.parent.parent.parent.resolve() != (PROJECT_DIR / "products").resolve():
             raise ValueError(f"No integration found at {filepath}")
 
         mode = "push"
@@ -486,6 +512,13 @@ class Integration(Model):
             fn += f"_{self.mode}"
         return path_in_project(PROJECT_DIR / "products" / self.product / "integrations" / self.target_product / fn)
 
+    def get_or_prompt(self, attribute: str, prompt: str):
+        """Get the given :attribute from the integration's manifest, or prompt the user for it"""
+        if not getattr(self, attribute, None):
+            setattr(self, attribute, interaction.prompt(prompt))
+            self.save()
+        return getattr(self, attribute)
+
     def matches(self, integration: "Integration"):
         """Check if this integration matches a complementary integration (e.g., consumer/producer)"""
         return (
@@ -496,9 +529,9 @@ class Integration(Model):
         )
 
     def scaffold(self):
-        print("Scaffold integration", self.product, "to", self.target_product, self.topic, self.role, self.mode)
+        info("Scaffold integration", self.product, "to", self.target_product, self.topic, self.role, self.mode)
         for i, f in enumerate(self.get_setup_functions("scaffold")):
-            print(f"\n{i + 1}) {f.get_title()}")
+            info(f"\n{i + 1}) {f.get_title()}")
             f.call(integration=self)
         return self
 
@@ -535,23 +568,23 @@ class Integration(Model):
 
     def up(self, plug: "Plug"):
         """Setup the Integration on the tenant"""
-        print(f"Setup {self.role}")
+        info(f"> Setup {self.role}")
         tenant = plug.get_src_tenant() if self.role in ("producer", "trigger") else plug.get_dst_tenant()
         for i, f in enumerate(self.get_setup_functions("setup")):
-            print(f"\n{i + 1}) {f.get_title()}")
+            info(f"\n{i + 1}) {f.get_title()}")
             f.call(plug=plug, integration=self, tenant=tenant)
-        print("✓ done\n")
+        info("✓ done\n")
 
     def down(self, plug: "Plug"):
         """Tear down the Integration from the tenant"""
-        print("Teardown", self.role)
+        info("> Teardown", self.role)
         tenant = plug.get_src_tenant() if self.role in ("producer", "trigger") else plug.get_dst_tenant()
         for i, f in enumerate(self.get_setup_functions("teardown")):
-            print(f"\n{i + 1}) {f.get_title()}")
+            info(f"\n{i + 1}) {f.get_title()}")
             f.call(plug=plug, integration=self, tenant=tenant)
-        print("✓ done\n")
+        info("✓ done\n")
 
-    def get_setup_functions(self, type: Literal["setup", "teardown", "scaffold"] | None = None):
+    def get_setup_functions(self, type: Literal["setup", "teardown", "scaffold", "watch"] | None = None):
         """
         List all the setup functions defined for this integration, declared either:
         - via meshroom.decorators.setup(...) decorator at integration-level
@@ -579,6 +612,19 @@ class Integration(Model):
         import_module(self.path.with_suffix(".py"), package_dir=self.path.parent.parent.parent)
         self.get_product().import_python_modules()
 
+    def publish(self):
+        """Publish the integration according to the defined product's @publish hooks"""
+        if not self.path.with_suffix(".yml").is_file():
+            return False  # Skip publishing if the integration isn't an explicitly defined one
+        funcs = self.get_setup_functions("publish")
+        if not funcs:
+            return False
+        info(f"Publish integration {self}")
+        for f in funcs:
+            f.call(integration=self)
+        info(f"✓ Published {self}")
+        return True
+
 
 class Tenant(Model):
     """
@@ -590,6 +636,12 @@ class Tenant(Model):
     name: str
     product: str
     settings: dict = {}
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return str(self)
 
     @staticmethod
     def load(path: Path):
@@ -611,6 +663,7 @@ class Tenant(Model):
         return self
 
     def get_settings_schema(self):
+        """Get the product's settings expected JSON schema"""
         return get_product(self.product).settings
 
     def set_secret(self, key: str, value: Any):
@@ -624,13 +677,68 @@ class Tenant(Model):
 
         return secrets.get_secret(f"{self.product}_{self.name}_{key}", prompt_if_not_exist=prompt_if_not_exist)
 
+    def get_product(self) -> Product:
+        return get_product(self.product)
+
     @property
     def plugs(self):
+        """List the plugs configured for this tenant"""
         return list(list_plugs(src_tenant=self.name))
 
     @property
     def path(self):
+        """Get the path to the tenant's configuration directory"""
         return path_in_project(PROJECT_DIR / "config" / self.product / self.name)
+
+    def watch(self, topic: str, role: Role | None = None, mode: Mode | None = None):
+        """Watch the tenant for data flowing through a given topic"""
+        try:
+            w = self.get_product().get_setup_functions("watch")[0]
+        except IndexError:
+            raise ValueError(f"🚫 No @watch function found for {self}")
+        yield from w.call(tenant=self, topic=topic, role=role, mode=mode)
+
+    def produce(self, topic, data: str | bytes, mode: Mode | None = None):
+        """Produce data flowing through a given topic to this tenant"""
+        try:
+            s = self.get_product().get_setup_functions("produce")[0]
+        except IndexError:
+            raise ValueError(f"🚫 No @produce function found for {self}")
+        return s.call(
+            plug=self,
+            tenant=self,
+            topic=topic,
+            mode=mode,
+            data=data,
+        )
+
+    def trigger(self, topic, data: dict | None = None, mode: Mode | None = None):
+        """Emulate a trigger exposed by this tenant"""
+        try:
+            s = self.get_product().get_setup_functions("trigger")[0]
+        except IndexError:
+            raise ValueError(f"🚫 No @trigger function found for {self}")
+        return s.call(
+            plug=self,
+            tenant=self,
+            topic=topic,
+            mode=mode,
+            data=data,
+        )
+
+    def execute(self, topic, data: dict | None = None, mode: Mode | None = None):
+        """Remotely trigger an executor exposed by this tenant"""
+        try:
+            s = self.get_product().get_setup_functions("execute")[0]
+        except IndexError:
+            raise ValueError(f"🚫 No @execute function found for {self}")
+        return s.call(
+            plug=self,
+            tenant=self,
+            topic=topic,
+            mode=mode,
+            data=data,
+        )
 
 
 class Plug(Model):
@@ -654,6 +762,7 @@ class Plug(Model):
     src_config: dict = {}
     dst_config: dict = {}
     status: Literal["up", "down"] = "down"
+    settings: dict = {}
 
     def __str__(self):
         out = f"{self.src_tenant} --[{self.topic}:{self.mode}]-> {self.dst_tenant}"
@@ -690,7 +799,7 @@ class Plug(Model):
             self.path.parent.rmdir()
         if not list(self.path.parent.parent.iterdir()):
             self.path.parent.parent.rmdir()
-        print(f"✓ Unplugged {self}")
+        info(f"✓ Unplugged {self}")
 
     @property
     def path(self):
@@ -736,6 +845,24 @@ class Plug(Model):
             raise ValueError(f"Multiple producers found for {self}\n{producers}")
         return producers[0]
 
+    def get_trigger(self):
+        """Get a suitable trigger to setup the trigger side of the integration"""
+        triggers = list(list_integrations(self.get_src_product().name, self.get_dst_product().name, self.topic, role="trigger", mode=self.mode))
+        if not triggers:
+            raise ValueError(f"No trigger seems to be implemented for {self}")
+        elif len(triggers) > 1:
+            raise ValueError(f"Multiple triggers found for {self}:\n{triggers}")
+        return triggers[0]
+
+    def get_executor(self):
+        """Get a suitable executor to setup the executor side of the integration"""
+        executors = list(list_integrations(self.get_dst_product().name, self.get_src_product().name, self.topic, role="producer", mode=self.mode))
+        if not executors:
+            raise ValueError(f"No executor seems to be implemented for {self}")
+        elif len(executors) > 1:
+            raise ValueError(f"Multiple executors found for {self}\n{executors}")
+        return executors[0]
+
     def get_src_tenant(self):
         """Get the source Tenant of the integration"""
         return get_tenant(self.src_tenant)
@@ -764,9 +891,9 @@ class Plug(Model):
     def up(self):
         """Setup the integration on the target Tenants"""
         if self.status == "up":
-            return print(f"🚫 {self} is already up")
+            return debug(f"🚫 {self} is already up")
 
-        print("Setup", self)
+        info("Setup", self)
 
         # Look for a (consumer, producer) pair of integrations
         p = self.get_producer()
@@ -786,9 +913,9 @@ class Plug(Model):
     def down(self):
         """Tear down the integration on the target Tenants"""
         if self.status == "down":
-            return print(f"🚫 {self} is already down")
+            return debug(f"🚫 {self} is already down")
 
-        print("Teardown", self)
+        info("Teardown", self)
 
         # Look for a (consumer, producer) pair of integrations
         p = self.get_producer()
@@ -799,19 +926,60 @@ class Plug(Model):
         self.status = "down"
         return self.save()
 
-    async def watch(self):
-        """Watch the integration for data flowing through"""
-        print("Watch", self.src_tenant, self.dst_tenant, self.topic, self.mode)
-        # TODO Watch
-        while True:
-            await asyncio.sleep(1)
-            print(".")
+    def watch(self):
+        """Watch the integration for data received by its consumer end"""
+        try:
+            w = self.get_consumer().get_setup_functions("watch")[0]
+        except IndexError:
+            raise ValueError(f"🚫 No @watch function found for {self}")
+        yield from w.call(
+            plug=self,
+            tenant=self.get_dst_tenant(),
+            integration=self.get_consumer(),
+            mode=self.mode,
+        )
 
-    def emulate(self):
-        """Emulate data flowing through the integration"""
-        print("Emulate", self.src_tenant, self.dst_tenant, self.topic, self.mode)
-        # TODO Emulate
-        return self
+    def produce(self, data: str | bytes):
+        """Produce data flowing through the integration"""
+        try:
+            s = self.get_consumer().get_setup_functions("produce")[0]
+        except IndexError:
+            raise ValueError(f"🚫 No @produce function found for {self}")
+        return s.call(
+            plug=self,
+            tenant=self.get_dst_tenant(),
+            integration=self.get_consumer(),
+            mode=self.mode,
+            data=data,
+        )
+
+    def trigger(self, data: str | bytes):
+        """Emulate the triggering of the trigger exposed by this integration"""
+        try:
+            s = self.get_trigger().get_setup_functions("trigger")[0]
+        except IndexError:
+            raise ValueError(f"🚫 No @trigger function found for {self}")
+        return s.call(
+            plug=self,
+            tenant=self.get_src_tenant(),
+            integration=self.get_trigger(),
+            mode=self.mode,
+            data=data,
+        )
+
+    def execute(self, data: str | bytes):
+        """Execute the executor exposed by this integration"""
+        try:
+            s = self.get_executor().get_setup_functions("execute")[0]
+        except IndexError:
+            raise ValueError(f"🚫 No @execute function found for {self}")
+        return s.call(
+            plug=self,
+            tenant=self.get_dst_tenant(),
+            integration=self.get_executor(),
+            mode=self.mode,
+            data=data,
+        )
 
 
 def set_project_dir(path: str | Path):
@@ -834,7 +1002,7 @@ def path_in_project(path: str | Path):
 
 def init_project(path: str | Path, git: bool | str = True):
     """Initialize a new meshroom project in an empty or existing directory, optionally backing it with a git repo"""
-    from meshroom.git import git_init
+    from meshroom.git import Git
 
     path = Path(path)
     set_project_dir(path)
@@ -842,19 +1010,19 @@ def init_project(path: str | Path, git: bool | str = True):
     if path.is_dir() and list(PROJECT_DIR.iterdir()):
         if validate_meshroom_project(PROJECT_DIR):
             if git:
-                git_init(remote=git or None)
-            print("🚫 This meshroom project is already initialized")
+                Git().init(remote=git or None)
+            debug("🚫 This meshroom project is already initialized")
             return False
         raise ValueError("Directory is not empty and is not a meshroom project")
 
     # Create the project directory structure
-    PROJECT_DIR.mkdir(parents=True, exist_ok=True)
-    (PROJECT_DIR / "products").mkdir(exist_ok=True)
-    (PROJECT_DIR / "config").mkdir(exist_ok=True)
-    git_init(remote=git or None)
-    shutil.copy(TEMPLATES_DIR / ".gitignore", PROJECT_DIR / ".gitignore")
-
-    print(f"✓ Meshroom project initialized at {PROJECT_DIR.absolute()}")
+    generate_files_from_template(
+        TEMPLATES_DIR / "init_project",
+        PROJECT_DIR,
+        {"{{NAME}}": path.name},
+    )
+    Git().init(remote=git or None)
+    info(f"✓ Meshroom project initialized at {PROJECT_DIR.absolute()}")
     return True
 
 
@@ -927,13 +1095,14 @@ def create_tenant(product: str, name: str | None = None):
     name = name or product
     tenant_dir = path_in_project(PROJECT_DIR / "config" / product / name)
     if tenant_dir.exists():
-        raise ValueError(f"🚫 Tenant {name} already exists")
+        debug(f"🚫 Tenant {name} already exists")
+        return Tenant.load(tenant_dir)
 
     if not (PROJECT_DIR / "products" / product).is_dir():
         raise ValueError(f"Product {product} not found")
 
     tenant_dir.mkdir(parents=True, exist_ok=True)
-    print(f"Create tenant {name} for product {product}")
+    info(f"Create tenant {name} for product {product}")
     return Tenant.load(tenant_dir).save()
 
 
@@ -943,7 +1112,7 @@ def delete_tenant(tenant: str, product: str | None = None):
     if product:
         path = path_in_project(path / product / tenant)
         shutil.rmtree(path)
-        print("✓ Removed", path)
+        info("✓ Removed", path)
     else:
         for product_dir in path.iterdir():
             if path_in_project(product_dir / tenant).is_dir():
@@ -960,16 +1129,13 @@ def plug(src_tenant: str, dst_tenant: str, topic: str, mode: Mode | None = None,
     try:
         # Check if the plug already exists (whatever the format)
         plug = get_plug(src_tenant, dst_tenant, topic, mode)
-        print(f"🚫 Plug {plug}  already exists at {plug.path}")
+        debug(f"🚫 Plug {plug}  already exists at {plug.path}")
         return plug
     except ValueError:
-        print(src, dst, src.product, dst.product, topic, mode, format)
         producers = list(list_integrations(src.product, dst.product, topic, "producer", mode=mode, format=format))
         consumers = list(list_integrations(dst.product, src.product, topic, "consumer", mode=mode, format=format))
         triggers = list(list_integrations(src.product, dst.product, topic, "trigger", mode=mode, format=format))
-        print("triggers", triggers)
         executors = list(list_integrations(dst.product, src.product, topic, "executor", mode=mode, format=format))
-        print("executors", executors)
         for producer in producers:
             for consumer in consumers:
                 if producer.matches(consumer):
@@ -980,7 +1146,7 @@ def plug(src_tenant: str, dst_tenant: str, topic: str, mode: Mode | None = None,
                         mode=producer.mode or consumer.mode or mode,
                         format=producer.format or consumer.format or format,
                     ).save()
-                    print(f"✓ Plugged {plug}")
+                    info(f"✓ Plugged {plug}")
                     return plug
         for trigger in triggers:
             for executor in executors:
@@ -992,7 +1158,7 @@ def plug(src_tenant: str, dst_tenant: str, topic: str, mode: Mode | None = None,
                         mode=trigger.mode or executor.mode or mode,
                         format=trigger.format or executor.format or format,
                     ).save()
-                    print(f"✓ Plugged {plug}")
+                    info(f"✓ Plugged {plug}")
                     return plug
 
         raise ValueError(f"""❌ No integration between {dst_tenant} ({dst.product}) and {src_tenant} ({src.product}) for topic {topic} (mode={mode}) is implemented
@@ -1013,7 +1179,7 @@ def unplug(src_tenant: str, dst_tenant: str, topic: str, mode: Mode | None = Non
     try:
         get_plug(src_tenant, dst_tenant, topic, mode).delete()
     except ValueError:
-        print(f"❌ Plug {src_tenant} --[{topic}:{mode}]-> {dst_tenant} not found")
+        error(f"❌ Plug {src_tenant} --[{topic}:{mode}]-> {dst_tenant} not found")
 
 
 def list_integrations(
@@ -1049,7 +1215,6 @@ def list_integrations(
                     continue
 
                 for b in get_product(target_product_dir.name).list_capabilities(topic=topic, format=format):
-                    print("\n", product_dir.name, target_product_dir.name, "\n", a, b, "\n")
                     if a.matches(b):
                         # Yield generic Integration objects for matching capabilities
                         out.append(
@@ -1060,9 +1225,10 @@ def list_integrations(
                                 role=a.role,
                                 mode=a.mode,
                                 format=a.format or b.format,
+                                is_generic=True,
                             )
                         )
-
+    # Return a list of unique integrations, sorted by priority
     return list(set(sorted(out, key=lambda i: (i.product, i.target_product or "", i.topic, i.role, i.mode or "", i.format or ""))))
 
 
@@ -1124,38 +1290,43 @@ def scaffold_integration(
     path = path_in_project(PROJECT_DIR / "products" / product / "integrations" / target_product / fn)
 
     if path.with_suffix(".yml").is_file():
-        print(f"🚫 Integration {product} -> {target_product} {topic} {role} {mode} already exists at {path}")
+        debug(f"🚫 Integration {product} -> {target_product} {topic} {role} {mode} already exists at {path}")
         return Integration.load(path)
 
     path.parent.mkdir(parents=True, exist_ok=True)
     i = Integration(product=product, target_product=target_product, topic=topic, role=role, mode=mode, format=format).scaffold(**kwargs).save()
 
-    print(f"✓ Integration {product} -> {target_product} {topic} {role} {mode} scaffolded at {path}")
+    info(f"✓ Integration {product} -> {target_product} {topic} {role} {mode} scaffolded at {path}")
 
     return i
 
 
-def scaffold_product(name: str, **kwargs):
+def scaffold_product(name: str, template: str | None = None, **kwargs):
     path = path_in_project(PROJECT_DIR / "products" / name)
     if path.is_dir():
-        print(f"🚫 Product {name} already exists, see {path}/definition.yaml")
+        debug(f"🚫 Product {name} already exists, see {path}/definition.yaml")
         return Product.load(path)
 
-    p = create_product(path, **kwargs).scaffold().save()
-    print(f"✓ Product {name} scaffolded at {path}/definition.yaml")
+    p = create_product(path, **kwargs)
+    if template:
+        p.scaffold(template=template)
+        p = Product.load(path)
+
+    p.save()
+    info(f"✓ Product {name} scaffolded {f'from {template}' if template else ''} at {path}/definition.yaml")
     return p
 
 
 def scaffold_capability(product: str, topic: str, role: Role, mode: Mode = "push", format: str | None = None, **kwargs):
     p = get_product(product)
     if cap := p.list_capabilities(role, topic, format, mode):
-        print(f"🚫 Product '{product}' already has capability {cap[0]}")
+        debug(f"🚫 Product '{product}' already has capability {cap[0]}")
         return cap[0]
 
     p.add_capability(role, topic, mode, format)
     p.save()
     out = p.list_capabilities(role, topic, format, mode)[0]
-    print(f"✓ Capability {out} scaffolded for Product '{product}'")
+    info(f"✓ Capability {out} scaffolded for Product '{product}'")
     return out
 
 
@@ -1173,9 +1344,47 @@ def down(src_tenant: str | None = None, dst_tenant: str | None = None, topic: st
         plug.down()
 
 
-async def watch(src_tenant: str, dst_tenant: str, topic: str, role: Role, mode: Mode | None = None):
-    return await get_plug(src_tenant, dst_tenant, topic, mode).watch(role)
+def watch(tenant: str, dst_tenant: str | None, topic: str, mode: Mode | None = None):
+    if dst_tenant:
+        p = get_plug(tenant, dst_tenant, topic, mode)
+        w = p.watch()
+        log(f"Watching plug {p} for {topic}", file=sys.stderr)
+        return w
+    else:
+        t = get_tenant(tenant)
+        w = t.watch(topic, "consumer", mode)
+        log(f"Watching tenant {t} for {topic}", file=sys.stderr)
+        return w
 
 
-def emulate(src_tenant: str, dst_tenant: str, topic: str, role: Role, mode: Mode = "push"):
-    return get_plug(src_tenant, dst_tenant, topic, mode).emulate(role)
+def produce(tenant: str, dst_tenant: str | None, topic: str, data: str | bytes, mode: Mode | None = None):
+    if dst_tenant:
+        return get_plug(tenant, dst_tenant, topic, mode).produce(data)
+    else:
+        return get_tenant(tenant).produce(topic, data, mode=mode)
+
+
+def trigger(tenant: str, dst_tenant: str | None, topic: str, data: dict | None = None, mode: Mode | None = None):
+    if dst_tenant:
+        return get_plug(tenant, dst_tenant, topic, mode).trigger(data)
+    else:
+        return get_tenant(tenant).trigger(topic, data, mode=mode)
+
+
+def execute(tenant: str, dst_tenant: str | None, topic: str, data: dict | None = None, mode: Mode | None = None):
+    if dst_tenant:
+        return get_plug(tenant, dst_tenant, topic, mode).execute(data)
+    else:
+        return get_tenant(tenant).execute(topic, data, mode=mode)
+
+
+def publish(
+    product: str | None = None,
+    target_product: str | None = None,
+    topic: str | None = None,
+    role: Role | None = None,
+    mode: Mode | None = None,
+    format: str | None = None,
+):
+    if not any(i.publish() for i in list_integrations(product, target_product, topic, role, mode, format)):
+        debug("🚫 No publish hook found")

@@ -20,6 +20,7 @@ keyring = "^25.5.0"
 passpy = "^1.0.2"
 requests = "^2.32.3"
 beautifulsoup4 = "^4.12.3"
+websocket-client = "^1.8.0"
 
 
 [tool.poetry.scripts]

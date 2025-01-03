@@ -6,15 +6,19 @@ from .api import SekoiaAPI
 @setup_consumer("events", order="first")
 def create_intake_key(integration: Integration, plug: Plug, tenant: Tenant):
     """Create an intake key to consume events"""
+    from meshroom.interaction import debug, info
 
     if intake_key := plug.get_secret("intake_key"):
-        print("🚫 Intake key already exists")
+        debug("🚫 Intake key already exists")
         return intake_key
 
     api = SekoiaAPI(
         tenant.settings.get("region", "fra1"),
         tenant.get_secret("API_KEY"),
     )
+
+    if not getattr(integration, "intake_format_uuid", None):
+        raise ValueError("Intakes can't be created without an intake format, see example/products/sekoia/templates/event_consumer for inspiration")
 
     intake_name = integration.target_product.replace("_", " ")
 
@@ -23,6 +27,9 @@ def create_intake_key(integration: Integration, plug: Plug, tenant: Tenant):
 
     # Pull intakes require an automation connector
     if integration.mode == "pull":
+        if not getattr(integration, "automation_module_uuid", None):
+            raise ValueError("Pull intakes require a connector, see example/products/sekoia/templates/event_consumer_pull for inspiration")
+
         # Find or create a suitable module configuration
         module_configuration = plug.dst_config.get("module_configuration") or {}
         connector_configuration = plug.dst_config.get("connector_configuration") or {}
@@ -50,13 +57,17 @@ def create_intake_key(integration: Integration, plug: Plug, tenant: Tenant):
 
     # Securely store the intake key
     plug.set_secret("intake_key", intake["intake_key"])
+    plug.settings["intake_uuid"] = intake["uuid"]
+    plug.save()
 
-    print(f"✓ Intake {intake_name} created")
+    info(f"✓ Intake {intake_name} created")
 
 
 @teardown_consumer("events")
 def delete_intake_key(integration: Integration, plug: Plug, tenant: Tenant):
     """Delete the intake key when the plug is torn down"""
+    from meshroom.interaction import info
+
     api = SekoiaAPI(
         tenant.settings.get("region", "fra1"),
         tenant.get_secret("API_KEY"),
@@ -67,6 +78,8 @@ def delete_intake_key(integration: Integration, plug: Plug, tenant: Tenant):
     intake_keys = api.get_intake_keys(intake_name, integration.intake_format_uuid)
     for intake_key in intake_keys:
         api.delete_intake_key(intake_key["uuid"])
-        print(f"✓ Intake {intake_key['name']} deleted")
+        info(f"✓ Intake {intake_key['name']} deleted")
 
     plug.delete_secret("intake_key")
+    if plug.settings.get("intake_uuid"):
+        del plug.settings["intake_uuid"]

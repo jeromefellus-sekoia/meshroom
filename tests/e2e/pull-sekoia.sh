@@ -1,5 +1,7 @@
 #!/bin/bash
-set -x
+set -e
+set +x
+
 
 cd $(dirname $0)/../..
 
@@ -7,6 +9,8 @@ cd $(dirname $0)/../..
 if [ "$1" == "-f" ]; then
     rm -rf tests/e2e/data
 fi
+
+set -x
 
 meshroom init tests/e2e/data
 
@@ -18,7 +22,9 @@ meshroom pull sekoia
 
 # PERSONA 2) The end user experience starts here
 
-meshroom add sekoia
+set +e
+pass MESHROOM_SEKOIA_API_KEY | meshroom add sekoia -s API_KEY
+set -e
 
 meshroom list products sek
 meshroom list tenants sek

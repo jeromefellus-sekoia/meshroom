@@ -2,9 +2,9 @@ import inspect
 from pathlib import Path
 from typing import Callable, Literal
 from meshroom.ast import adapt_kwargs_to_signature
-from meshroom.model import Integration, Model, Role, Mode, get_product, get_project_dir, get_integration
+from meshroom.model import Integration, Model, Product, Role, Mode, get_product, get_project_dir
 
-SetupFunctionType = Literal["setup", "teardown", "scaffold"]
+SetupFunctionType = Literal["setup", "teardown", "scaffold", "watch", "produce", "trigger", "execute", "publish"]
 _setup_functions: set["SetupFunction"] = set()
 SetupFunctionOrder = Literal["first", "last"] | int
 
@@ -22,15 +22,18 @@ class SetupFunction(Model):
     title: str
     type: SetupFunctionType = "setup"
 
-    def match(self, integration: Integration):
-        return (
-            self.product == integration.product
-            and self.target_product in (None, integration.target_product)
-            and self.role == integration.role
-            and self.topic == integration.topic
-            and self.mode in (None, integration.mode)
-            and self.format in (None, integration.format)
-        )
+    def match(self, o: Integration | Product):
+        if isinstance(o, Integration):
+            return (
+                self.product == o.product
+                and self.target_product in (None, o.target_product)
+                and self.role == o.role
+                and self.topic == o.topic
+                and self.mode in (None, o.mode)
+                and self.format in (None, o.format)
+            )
+        else:
+            return self.product == o.name and self.target_product is None
 
     def __lt__(self, other: "SetupFunction"):
         if self.order == "first":
@@ -41,6 +44,10 @@ class SetupFunction(Model):
             return False
         elif other.order == "last":
             return True
+        if other is None or other.order is None:
+            return True
+        if self.order is None:
+            return False
         return self.order < other.order
 
     def get_title(self):
@@ -296,6 +303,119 @@ def teardown_trigger(
     return decorator
 
 
+def watch(topic: str, mode: Mode | None = None, format: str | None = None):
+    """
+    Decorator to declare a function as yielding data received from a topic consumed by the product where it resides
+    """
+
+    def decorator(func: Callable):
+        func_file = Path(inspect.getfile(func))
+        try:
+            i = Integration.load(func_file.with_suffix(""))
+            if i.role not in "consumer":
+                raise ValueError("watch() decorator can only be used in a consumer Integration")
+            SetupFunction.add(i.product, i.target_product, i.role, i.topic, i.mode, func, True, None, None, "watch", format)
+            return func
+        except ValueError:
+            if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
+                raise ValueError("watch() decorator can't be used outside of a Product's directory")
+
+            SetupFunction.add(product.name, None, "consumer", topic, mode, func, True, None, None, "watch", format)
+            return func
+
+    return decorator
+
+
+def produce(topic: str, mode: Mode | None = None, format: str | None = None):
+    """
+    Decorator to declare a function as emulating data transmission to a topic consumed by the product where it resides
+    """
+
+    def decorator(func: Callable):
+        func_file = Path(inspect.getfile(func))
+        try:
+            i = Integration.load(func_file.with_suffix(""))
+            if i.role not in "producer":
+                raise ValueError("produce() decorator can only be used in a consumer Integration")
+            SetupFunction.add(i.product, i.target_product, i.role, i.topic, i.mode, func, True, None, None, "produce", format)
+            return func
+        except ValueError:
+            if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
+                raise ValueError("produce() decorator can't be used outside of a Product's directory")
+
+            SetupFunction.add(product.name, None, "consumer", topic, mode, func, True, None, None, "produce", format)
+            return func
+
+    return decorator
+
+
+def trigger(topic: str, mode: Mode | None = None, format: str | None = None):
+    """
+    Decorator to declare a function as triggering the given trigger topic by the product where it resides
+    """
+
+    def decorator(func: Callable):
+        func_file = Path(inspect.getfile(func))
+        try:
+            i = Integration.load(func_file.with_suffix(""))
+            if i.role not in "trigger":
+                raise ValueError("trigger() decorator can only be used in a trigger Integration")
+            SetupFunction.add(i.product, i.target_product, i.role, i.topic, i.mode, func, True, None, None, "trigger", format)
+            return func
+        except ValueError:
+            if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
+                raise ValueError("trigger() decorator can't be used outside of a Product's directory")
+
+            SetupFunction.add(product.name, None, "trigger", topic, mode, func, True, None, None, "trigger", format)
+            return func
+
+    return decorator
+
+
+def execute(topic: str, mode: Mode | None = None, format: str | None = None):
+    """
+    Decorator to declare a function as remotely executing the given executor exposed by the product where it resides
+    """
+
+    def decorator(func: Callable):
+        func_file = Path(inspect.getfile(func))
+        try:
+            i = Integration.load(func_file.with_suffix(""))
+            if i.role not in "trigger":
+                raise ValueError("execute() decorator can only be used in an executor Integration")
+            SetupFunction.add(i.product, i.target_product, i.role, i.topic, i.mode, func, True, None, None, "execute", format)
+            return func
+        except ValueError:
+            if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
+                raise ValueError("execute() decorator can't be used outside of a Product's directory")
+
+            SetupFunction.add(product.name, None, "executor", topic, mode, func, True, None, None, "execute", format)
+            return func
+
+    return decorator
+
+
+def publish(topic: str, role: Role | None = None, mode: Mode | None = None, format: str | None = None):
+    """
+    Decorator to declare a function as publishing an integration exposed by the product where it resides
+    """
+
+    def decorator(func: Callable):
+        func_file = Path(inspect.getfile(func))
+        try:
+            i = Integration.load(func_file.with_suffix(""))
+            SetupFunction.add(i.product, i.target_product, i.role, i.topic, i.mode, func, True, None, None, "publish", format)
+            return func
+        except ValueError:
+            if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
+                raise ValueError("publish() decorator can't be used outside of a Product's directory")
+
+            SetupFunction.add(product.name, None, role, topic, mode, func, True, None, None, "publish", format)
+            return func
+
+    return decorator
+
+
 def scaffold_consumer(
     topic: str,
     mode: Mode | None = None,
@@ -309,7 +429,7 @@ def scaffold_consumer(
     def decorator(func: Callable):
         func_file = Path(inspect.getfile(func))
         if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
-            raise ValueError("scaffold_consumer() decorator is allowed only in a product's scaffold.py")
+            raise ValueError("scaffold_consumer() decorator is allowed only in a product's python modules")
 
         SetupFunction.add(product.name, None, "consumer", topic, mode, func, True, order, None, "scaffold", format)
         return func
@@ -397,7 +517,7 @@ def setup(
         func_file = Path(inspect.getfile(func))
         i = Integration.load(func_file.with_suffix(""))
         if not i:
-            raise ValueError("setup() decorator is allowed only in a product's setup.py")
+            raise ValueError("setup() decorator can't be used outside of an Integration")
 
         SetupFunction.add(i.product, i.target_product, i.role, i.topic, i.mode, func, True, order, title, "setup", format)
         return func
@@ -416,9 +536,9 @@ def teardown(
 
     def decorator(func: Callable):
         func_file = Path(inspect.getfile(func))
-        i = get_integration(func_file.with_suffix(""))
+        i = Integration.load(func_file.with_suffix(""))
         if not i:
-            raise ValueError("setup() decorator is allowed only in a product's setup.py")
+            raise ValueError("teardown() decorator can't be used outside of an Integration")
 
         SetupFunction.add(i.product, i.target_product, i.role, i.topic, i.mode, func, True, order, title, "teardown")
         return func

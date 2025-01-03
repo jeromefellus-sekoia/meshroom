@@ -1,5 +1,6 @@
 #!/bin/bash
-set -x
+set -e
+set +x
 
 cd $(dirname $0)/../..
 
@@ -7,6 +8,8 @@ cd $(dirname $0)/../..
 if [ "$1" == "-f" ]; then
     rm -rf tests/e2e/data
 fi
+
+set -x
 
 meshroom init tests/e2e/data
 
@@ -23,8 +26,12 @@ meshroom create integration sekoia example events consumer --mode=push
 meshroom create capability example events producer --mode=push --format=json
 
 # Create tenants and plug them
-meshroom add sekoia
+set +e
+pass MESHROOM_SEKOIA_API_KEY | meshroom add sekoia -s API_KEY
+set -e
 meshroom add example
-pass MESHROOM_SEKOIA_API_KEY | meshroom plug example sekoia events -s API_KEY
+meshroom plug example sekoia events
 
 meshroom up
+
+meshroom publish
