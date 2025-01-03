@@ -13,3 +13,5 @@ Feel free to contribute new templates to this folder, including:
 * `executes` capabilities for certain actions (`scan`, `powershell`, `isolate`, etc)
 
 You should avoid adding vendor-specific capabilities, instead trying to best reflect the standard functional scope of your product within a cybersecurity mesh ecosystem.
+
+Consider those templates as a scaffolder starting point when contributing a new product definition via `meshroom create product --from <TEMPLATE>`, and make any desired changes to your scaffolded product capabilities to best reflect your product's capability. Try to stick as much as possible to the template's topics and capabilities namings to maximize the interop potential of your product in the mesh ecosystem.

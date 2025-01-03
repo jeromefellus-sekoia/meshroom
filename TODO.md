@@ -16,6 +16,7 @@
 
 * [ ] OCSF intake format template
 * [ ] send -> produce
+* [ ] rephrase templates/products definition
 
 # Done
 
