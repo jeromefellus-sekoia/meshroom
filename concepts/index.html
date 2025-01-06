@@ -201,16 +201,25 @@ When no matching constraint set can be found out of all existing Integrations, t
 <p>Ideally, you won't ever need to switch to your products' admin consoles. You may then assess the quality of your mesh interop via</p>
 <p><code>meshroom produce</code> and <code>meshroom watch</code> commands, that respectively helps you producing and inspecting data flowing through your plugs.</p>
 <h2 id="hooks">Hooks</h2>
-<p>TODO</p>
+<p>Many products require complex programmatic steps to setup an actual interop with a 3rd-party. The classical approach is to follow manual recipes from the products documentation, navigate through multiple admin panels and configuration forms to open the desired channel between two products. One of the main goals of Meshroom is to rationalize and fully automate these steps, so that <code>meshroom up</code> can submit the appropriate sequence of operations to all instances to configure the full mesh without direct user intervention.</p>
+<p>Willingness to favor remote tenant configuration via open APIs vary across vendors and solutions. Some products are simply not remote-configurable at all (think of adding syslog forwarding to an unexposed NGINX reverse-proxy). Others may require a very short but mandatory user navigation to their admin panel. Hopefully, more and more vendors embrace the CSMA philosophy and allow for completely remote configuration by 3rd-party providers.</p>
+<p>Meshroom takes into account those various regimes by allowing Products to define python hooks. Hooks are python decorated functions that will get executed in sequence upon <code>meshroom up</code>, taking the whole integration's context as arguments. Vendors and integrators can provide such hooks to implement automated procedures to remote-configure their product's capabilities. You can even provide boilerplate hooks to help user scaffold new integrations based on the products native extensibility features (plugins, custom formats, code addtions, <em>etc</em>), and publish hooks to guide the user through the vendor's homologation process required to publish their contribution into the product's official integrations catalog (marketplace, github PRs, <em>etc</em>).</p>
+<p>All hooks works by decorating vanilla python functions residing either inside</p>
 <ul>
-<li>setup</li>
-<li>teardown</li>
-<li>scaffold</li>
-<li>pull</li>
-<li>publish</li>
-<li>produce</li>
-<li>watch</li>
+<li>the product's directory (for product-wide generic hooks)</li>
+<li>a specific integration's subdirectory (for plug-specific hooks that depend on a specific products couple)</li>
 </ul>
+<p>via one of the decorators defined in the <code>meshroom.decorators</code> package:</p>
+<p>hook decorator,called upon,usage,required
+@setup,<code>meshroom up</code>,define an automated setup step to get a plug up-and-running on a given instance,optional
+@teardown,<code>meshroom down</code>,define an automated step to shutdown and cleanup a plug from a given instance,optional
+@scaffold,<code>meshroom create integration</code>,generate files for a new integration for a certain topic,optional
+@pull,<code>meshroom pull</code>,generate integrations by pulling the vendor's online integration catalog,required
+@publish,<code>meshroom publish</code>,submit all defined integrations to the vendor's catalog for public homologation,required
+@produce,<code>meshroom produce</code>,send data to the plug's destination for testing,required
+@watch,<code>meshroom watch</code>,inspect data flowing through the plug,required</p>
+<p>Hooks may specify an order (an integer or 'first'/'last' keywords) field to order the setup sequence.</p>
+<p>Hooks marked as "required" are required for the corresponding Meshroom command to work on the said product. They are not mandatory for a product definition to be valid, but not all meshroom command will be available until these hooks are implemented.</p>
 <h2 id="meshroom-project-structure">Meshroom project structure</h2>
 <p>A Meshroom project is a git-backed directory on your computer, that you can version and share via your favorite online git service. The local project itself has the following structure:</p>
 <pre><code>┃
