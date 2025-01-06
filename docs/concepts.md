@@ -1,5 +1,9 @@
 # Concepts
 
+## Integration lifecycle
+
+TODO CYCLE SCHEMA
+
 ## Capabilities graph
 
 Formally, a cybersecurity mesh architecture (CSMA) is a directed graph of products talking to eachother.
@@ -14,7 +18,11 @@ Therefore, an edge exist between product couples that expose complementary integ
 
 The density if the capabilities graph measures the "openness" of the products constellation ; one wants to maximize the number of allowed interops between cybersecurity solutions available on the market
 
-* The **Mesh** itself, which is an instanciation of several product **Instances** connected to eachother by **Plugs** who leverage compatible Integrations over the underlying capabilities graph. Instances correspond to actual user tenants of the underlying products, and plugs are live connections between those tenants. In order to setup the defined plugs, instances must be configured to enable the corresponding production/consumption triggering/execution logic, potentially via custom additions to the products themselves. Meshroom's spirit is to make all this configuration and provisioning as simple as a single `meshroom up` command. To do so, Products, Integrations, Instances and Plugs are defined via YAML manifests and vendor code additions when required. All these files belong to a git-backed repository that can be shared, versioned via git and manipulated via the Meshroom CLI, exactly as, say, Helm charts can be shared among a community of Kubernetes users. Some sensitive data, like API keys and other secrets used to teleoperate the Instances are natively held and managed by Meshroom in a local GPG secrets store, that can also be shared following a classical GPG assymetric cryptography process. This decreases the risk of leak resulting from a spread of many secrets used to co-ordinate a myriad of tenants, while easing the sharing of a full read-to-use SOC configuration.
+* The **Mesh** graph itself, which is an instanciation of several product **Instances** connected to eachother by **Plugs** who leverage compatible Integrations over the underlying capabilities graph. Instances correspond to actual user tenants of the underlying products, and plugs are live connections between those tenants. In order to setup the defined plugs, instances must be configured to enable the corresponding production/consumption triggering/execution logic, potentially via custom additions to the products themselves. Meshroom's spirit is to make all this configuration and provisioning as simple as a single `meshroom up` command.
+
+To do so, Products, Integrations, Instances and Plugs are defined via YAML manifests and vendor code additions when required. All these files belong to a **git-backed repository** that can be shared, versioned via git and manipulated via the Meshroom CLI, exactly as, say, Helm charts can be shared among a community of Kubernetes users.
+
+Some **sensitive data**, like API keys and other secrets used to teleoperate the Instances are natively held and managed by Meshroom in a **local GPG secrets store**, that can also be shared following a classical GPG assymetric cryptography process. This decreases the risk of leak resulting from a spread of secrets used to co-ordinate numerous tenants, while easing the **sharing** of a full read-to-use SOC configuration.
 
 
 ## Product
