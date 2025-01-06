@@ -24,44 +24,137 @@ To do so, Products, Integrations, Instances and Plugs are defined via YAML manif
 
 Some **sensitive data**, like API keys and other secrets used to teleoperate the Instances are natively held and managed by Meshroom in a **local GPG secrets store**, that can also be shared following a classical GPG assymetric cryptography process. This decreases the risk of leak resulting from a spread of secrets used to co-ordinate numerous tenants, while easing the **sharing** of a full read-to-use SOC configuration.
 
+## Project
+
+A Meshroom Project is a git-backed local directory on your computer, following a file structure the Meshroom CLI can understand and manipulate (see [Meshroom project structure](#meshroom-project-structure)).
+
+You can start a new meshroom project via `meshroom init <path>`. This will setup a new local git repo and few minimal files in this directory so that you can start building your integrations and mesh architecture. You can then directly add a git remote via `git remote add <remote> <remote_url>` such as a GitHub repo to save, share and publish your project via `git push`, and use the directory as a classical Git repository.
+
+Subsequent meshroom commands must be executed at the `<path>`'s root and will manipulate its files hierarchy.
 
 ## Product
 
+In Meshroom, a Product is the definition of a cybersecurity product's capabilities. A Product is primarily defined via a YAML file with:
+* a **name**
+* a textual **description** of its functional surface and its role in the security ecosystem
+* a set of **tags**, expliciting the product category it belongs to (*e.g.*, EDR, EASM, SIEM, etc)
+* a `produces` attribute listing the **producer** capabilities of the product (which **topics** the product is able to produce data for)
+* a `consumes` attribute, listing the **consumer** capabilities of the product
+* a `triggers` attribute, listing the **trigger** capabilities of the product
+* a `executes` attribute, listing the **executor** capabilities of the product
+
+Here is a example consumer capability:
+```yaml
+...
+consumes:
+    events:
+        - mode: pull
+          format: ECS
+        - mode: push
+          format: syslog
+...
+```
+This YAML strip tells that the product can **consume** the **events** topic in **pull mode** (aka active consumer, passive producer, as in HTTP GET) when events are formatted using ECS, and can consume events in **push mode** (aka passive consumer, active produver, as in syslog forwarding) as Syslog lines. Capabilities may be more generic (*e.g.* no format constraint) or more specific (*e.g.* add a protocol constraint to match). In all cases, two Products are said "interoperable" when we can find two corresponding capabilities
+
+* of complementary role (`consumes`->`produces` or `triggers`->`executes`)
+* of identical topic ("events" here)
+* of matching constraints (mode, format, etc). When a constraint is unset, the capability is considered "always matching" (*e.g* an ECS events producer will match a events consumer whose format is unset)
+
+Ideally, every product should define their full functional surface (incoming and outgoing data feeds, remlote API commands, etc) with appropriate constraint to clearly state their complete interop potential. This can be cumbersome, so Meshroom comes with a predefined set of **Product Templates** you can use to scaffold your own product. The templates catalog is sourced from Gartner's [Hype Cycle for Security Operations, 2024](https://www.gartner.com/interactive/hc/5622491?ref=solrAll&refval=433161127) and tries to cover all cybersecurity scopes, but feel free to contribute new templates if you feel we missed some product categories.
+
+To create a new product in your Meshroom project, simply use the
+
 `meshroom create product`
+
+command. You may base your product on an existing template via `meshroom create product --from <template>`
+
+You can list and search available products in the current project via
 
 `meshroom list products`
 
 ## Integration
 
-`meshroom create integration`
+To be interoperable, most product capabilities can't just be declared, some must be programmatically configured, some even involve pushing custom code or calling multiple APIs to get up-and-running. The recipe of setting up a consumer/producer/trigger/executor capability on a product is termed an **Integration**.
+
+Some Integrations will simply be implicitly rendered by their product's YAML manifest. For example, an exposed HTTP GET API at a given URL is fully described by its HTTP nature, the method used, the endpoint's URL and accepted path and query params. As in an Open API manifest, this information is enough to interconnect with a 3rd-party.
+
+Integrations that require specific configuration procedures can be explicitly defined via python hooks (see [Hooks](#hooks)) in the product's integrations folders. Python files insides those folders are automatically interpreted and used when calling `meshroom up` to know how to configure each end of a Plug edge, yielding an up-and-running interop between both products.
+
+You can create an integration via
+
+`meshroom create integration <product> <target_product> <topic> [options...]`
+
+You can see that an integration is always about a specific topic. If a given product endpoint serves multiple purposes, you shall define as many Integrations as necessary to cover the actual functional scope of it.
+
+You can list and search among existing integrations using
 
 `meshroom list integrations`
 
 ## Instance
 
-`meshroom add`
+Once your project defines a **Capabilities Graph** of **Products** and **Integrations**, you're ready to define a **Mesh architecture** by picking up among its allowed nodes and edges.
+
+In a mesh, nodes are called **Instances** and edges are called **Plugs**
+
+You can add a new instance of a given product using
+
+`meshroom add <product> [instance_name]`
+
+If the product declares required settings (like API keys, cloud region, URL, etc), you will be asked for their values, interactively. Fields declared as secrets in the product's YAML manifest will be securely stored in the project's GPG store.
+
+You can list defined instances using
 
 `meshroom list instances`
 
-`meshroom configure`
+And (re-)configure settings for an instance using
 
-secrets GPG
+`meshroom configure <instance_name>`
+
+Your project's Instances and GPG store form a handy bundle of your full SOC's product constellation, versioning and securely storing all the necessary material to administrate and interoperate this ecosystem in a well-defined hierarchy.
 
 ## Plug
 
-`meshroom plug`
+Instances communicate with eachother via so-called **Plugs**. Plugs are the edge of your mesh's graph. A Plug makes use of:
+* a source Integration on the source product at the edge's origin
+* a destination Integration on the destination product at the opposite end.
+A Plug always carries a single topic, in a single mode. When setting up a Plug using 2 integrations, the plug inherits its format and other constraints from the most specific combination of both integrations' constraints.
+When no matching constraint set can be found out of all existing Integrations, the Plug can't be created and the two product instances won't be able to communicate. You can then build new integration, perhaps more generic, to cover your desired Plug's need, on one or both ends of the edge (see [Integrations](#integrations)).
 
-`meshroom unplug`
+You can plug two Instances using
+
+`meshroom plug <source_instance> <destination_instance> <topic> [options...]`
+
+and unplug an existing plug using
+
+`meshroom unplug <source_instance> <destination_instance> <topic> [options...]`
+
+Note that there can only be one plug at a time for each set of constraints. You can get several plugs on the same Instances pair for the same topic by narrowing their constraint sets.
+
+You can list and search plugs using
 
 `meshroom list plugs`
 
+
 ## Up/down
 
+Once your mesh is defined, you can apply it to your real product tenants via a single command:
+
 `meshroom up`
+
+The opposite operation being
+
 `meshroom down`
+
+Like in docker compose (for those familiar with it), up/down is the core value of Meshroom : it allows to configure a full mesh in a single call, that will be resolved by Meshroom CLI to a sequence of configuration operations submitted to your Instances based on the defined settings, secrets and Plugs.
+
+Ideally, you won't ever need to switch to your products' admin consoles. You may then assess the quality of your mesh interop via
+
+`meshroom produce` and ` meshroom watch` commands, that respectively helps you producing and inspecting data flowing through your plugs.
 
 
 ## Hooks
+
+TODO
 
 * setup
 * teardown
