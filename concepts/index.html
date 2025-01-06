@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="../css/theme.css" />
     <link rel="stylesheet" href="../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../style.css" rel="stylesheet" />
     
       <script>
         // Current page data
@@ -187,7 +188,7 @@ consumes:
 <li>a source Integration on the source product at the edge's origin</li>
 <li>a destination Integration on the destination product at the opposite end.
 A Plug always carries a single topic, in a single mode. When setting up a Plug using 2 integrations, the plug inherits its format and other constraints from the most specific combination of both integrations' constraints.
-When no matching constraint set can be found out of all existing Integrations, the Plug can't be created and the two product instances won't be able to communicate. You can then build new integration, perhaps more generic, to cover your desired Plug's need, on one or both ends of the edge (see <a href="#integrations">Integrations</a>).</li>
+When no matching constraint set can be found out of all existing Integrations, the Plug can't be created and the two product instances won't be able to communicate. You can then build new integration, perhaps more generic, to cover your desired Plug's need, on one or both ends of the edge (see <a href="#integration">Integration</a>).</li>
 </ul>
 <p>You can plug two Instances using</p>
 <p><code>meshroom plug &lt;source_instance&gt; &lt;destination_instance&gt; &lt;topic&gt; [options...]</code></p>
@@ -214,17 +215,67 @@ When no matching constraint set can be found out of all existing Integrations, t
 <li>a specific integration's subdirectory (for plug-specific hooks that depend on a specific products couple)</li>
 </ul>
 <p>via one of the decorators defined in the <code>meshroom.decorators</code> package:</p>
-<p>hook decorator,called upon,usage,required
-| @setup    | <code>meshroom up</code>                 | define an automated setup step to get a plug up-and-running on a given instance | optional |
-| --------- | ----------------------------- | ------------------------------------------------------------------------------- | -------- |
-| @teardown | <code>meshroom down</code>               | define an automated step to shutdown and cleanup a plug from a given instance   | optional |
-| @scaffold | <code>meshroom create integration</code> | generate files for a new integration for a certain topic                        | optional |
-| @pull     | <code>meshroom pull</code>               | generate integrations by pulling the vendor's online integration catalog        | required |
-| @publish  | <code>meshroom publish</code>            | submit all defined integrations to the vendor's catalog for public homologation | required |
-| @produce  | <code>meshroom produce</code>            | send data to the plug's destination for testing                                 | required |
-| @watch    | <code>meshroom watch</code>              | inspect data flowing through the plug                                           | required |
-|           |                               |                                                                                 |          |
-Hooks may specify an order (an integer or 'first'/'last' keywords) field to order the setup sequence.</p>
+<table>
+<thead>
+<tr>
+<th>hook decorator</th>
+<th>called upon</th>
+<th>usage</th>
+<th>required</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>@setup</td>
+<td><code>meshroom up</code></td>
+<td>define an automated setup step to get a plug up-and-running on a given instance</td>
+<td>optional</td>
+</tr>
+<tr>
+<td>@teardown</td>
+<td><code>meshroom down</code></td>
+<td>define an automated step to shutdown and cleanup a plug from a given instance</td>
+<td>optional</td>
+</tr>
+<tr>
+<td>@scaffold</td>
+<td><code>meshroom create integration</code></td>
+<td>generate files for a new integration for a certain topic</td>
+<td>optional</td>
+</tr>
+<tr>
+<td>@pull</td>
+<td><code>meshroom pull</code></td>
+<td>generate integrations by pulling the vendor's online integration catalog</td>
+<td>required</td>
+</tr>
+<tr>
+<td>@publish</td>
+<td><code>meshroom publish</code></td>
+<td>submit all defined integrations to the vendor's catalog for public homologation</td>
+<td>required</td>
+</tr>
+<tr>
+<td>@produce</td>
+<td><code>meshroom produce</code></td>
+<td>send data to the plug's destination for testing</td>
+<td>required</td>
+</tr>
+<tr>
+<td>@watch</td>
+<td><code>meshroom watch</code></td>
+<td>inspect data flowing through the plug</td>
+<td>required</td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Hooks may specify an order (an integer or 'first'/'last' keywords) field to order the setup sequence.</p>
 <p>Hooks marked as "required" are required for the corresponding Meshroom command to work on the said product. They are not mandatory for a product definition to be valid, but not all meshroom command will be available until these hooks are implemented.</p>
 <h2 id="meshroom-project-structure">Meshroom project structure</h2>
 <p>A Meshroom project is a git-backed directory on your computer, that you can version and share via your favorite online git service. The local project itself has the following structure:</p>
