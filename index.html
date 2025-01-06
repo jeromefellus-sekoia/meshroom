@@ -50,7 +50,7 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#as-a-mssp-setup-a-full-cybersecurity-mesh-via-declarative-and-versionable-manifests">As a MSSP : setup a full cybersecurity mesh via declarative and versionable manifests</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#as-a-developer-painless-developer-experience-to-build-and-publish-custom-product-additions">As a developer : painless developer experience to build and publish custom product additions</a>
+    <li class="toctree-l3"><a class="reference internal" href="#as-a-developer-painless-dx-to-build-and-publish-custom-product-additions">As a developer : painless DX to build and publish custom product additions</a>
     </li>
         </ul>
     </li>
@@ -93,35 +93,44 @@
                 <h1 id="meshroom">Meshroom</h1>
 <p>A command-line tool to build and manage Cybersecurity Mesh Architectures (CSMA).</p>
 <h2 id="philosophy">Philosophy</h2>
-<p>As defined by Gartner, a <a href="https://www.gartner.com/en/information-technology/glossary/cybersecurity-mesh">Cybersecurity Mesh Architecture</a> is a set of interoperated cybersecurity services, each fulfilling a specific functional need (SIEM, EDR, EASM, XDR, TIP, <em>etc</em>).
+<p>As defined by Gartner, a <a href="https://www.gartner.com/en/information-technology/glossary/cybersecurity-mesh">Cybersecurity Mesh Architecture</a> is a graph of interoperated cybersecurity services, each fulfilling a specific functional need (SIEM, EDR, EASM, XDR, TIP, <em>etc</em>).
 Adopting the CSMA and Meshroom's philosophy means choosing an interconnected ecosystem of high-quality products with specialized scopes rather than a captive all-in-one solution.
-Therefore, it also means :
-* Adopting standard formats and protocols to share data and informations between products (STIX, ECS, OCSF, OpenC2, syslog, CEF, <em>etc</em>) rather than proprietary ones
-* Leveraging Open APIs to make your products communicate with eachother
-* Exploiting products' extensibility via plugins and open-source components to strengthen the interoperability with other products</p>
+It then means :</p>
+<ul>
+<li>Adopting standard formats and protocols rather than proprietary ones to share data and informations between products (STIX, ECS, OCSF, OpenC2, syslog, CEF, <em>etc</em>)</li>
+<li>Leveraging Open APIs to make your products communicate and control eachother</li>
+<li>Exploiting products' extensibility via plugins and open-source components to strengthen user-defined interoperability</li>
+</ul>
 <h2 id="who">Who ?</h2>
 <h3 id="as-a-vendor-fight-the-n-to-n-integration-curse">As a vendor : fight the N-to-N integration curse</h3>
-<p>Cybersecurity vendors know it well : integrating with other cybersecurity products consumes time and human resources. Integration teams feel so sad that every vendor has to spend those resources to develop an integration with every other vendor : this is the N-to-N integration curse. This curse mostly originates from:
-* Poor adoption of standard formats, protocols and API layouts to interoperate cybersecurity solutions
-* Lack of open resources and documentation to start communicating and controling a given product
-* Small actors are overwhelmed by the numerous integration opportunities with major actors, but won't factorise their contribution to make one integration suit all 3rd-party products
-* Every actor must keep hundreds of vendor-specific integrations up to date according to hundreds of non-coordinated roadmaps and breaking changes</p>
-<p>Meshroom helps cybersecurity vendors build integration between their products and other solutions, while keeping the integration burden as low a possible.
-To do so, <code>meshroom</code> comes with a set of predefined product templates categorized according to Gartner's <a href="https://www.gartner.com/interactive/hc/5622491?ref=solrAll&amp;refval=433161127">Hype Cycle for Security Operations, 2024</a>. By publishing your product's functional surface from one of this template, you encourage the adoption of standard API layouts, formats and protocols, eventually converging from a N-to-N integration burden to an ideal N product definitions repository, where every new vendor can costlessly plug with the N previously declared products.</p>
+<p>Cybersecurity vendors know it well : integrating with other cybersecurity products consumes <strong>time and human resources</strong>. Integration teams feel so sad when every vendor has to spend those resources to develop an integration with every other vendor, without factorization : this is the <strong>N-to-N integration curse</strong>. This curse mostly originates from:</p>
+<ul>
+<li>Poor adoption of <strong>standard formats, protocols and API layouts</strong> to interoperate cybersecurity solutions</li>
+<li>Lack of <strong>open resources and documentation</strong> to start communicating and controling a given product</li>
+<li>Small actors are overwhelmed by the numerous integration opportunities with major actors, but won't <strong>factorise</strong> their contribution to make one integration suit all 3rd-party products</li>
+<li>Every actor must keep <strong>hundreds of vendor-specific integrations</strong> up to date according to hundreds of <strong>non-coordinated roadmaps</strong> and constantly breaking changes</li>
+</ul>
+<p>Meshroom helps cybersecurity vendors <strong>build integrations</strong> between their products and other solutions, keeping the integration burden as low a possible.
+To do so, <code>meshroom</code> comes with a set of predefined <strong>product templates</strong> categorized according to Gartner's <a href="https://www.gartner.com/interactive/hc/5622491?ref=solrAll&amp;refval=433161127">Hype Cycle for Security Operations, 2024</a> that help you scaffolding full product definitions. By publishing your product's functional surface from one of this template, you encourage the adoption of open API layouts, formats and protocols. Whereby, you contributes to turn the N-to-N integration burden into an ideal repository of N reusable product definitions, where every new vendor can effortlessly plug with the N previously declared products.</p>
 <h3 id="as-a-mssp-setup-a-full-cybersecurity-mesh-via-declarative-and-versionable-manifests">As a MSSP : setup a full cybersecurity mesh via declarative and versionable manifests</h3>
-<p>Setting up a SOC is also a time-consuming operation. Sadly, MSSPs in charge of many similar information systems will often repeat those very same time-consuming steps again and again, switching from one solution's configuration interface to another one's console. Eventually, this will involve wildly manipulating API keys and administration forms, resulting in errors, security holes and blind spots. Many MSSPs maintain a run book of manual setup steps, and most of them automate part of those steps to get a SOC up-and-running within, say, days or perhaps hours...</p>
-<p>Meshroom helps DevSec operators to setup a full meshed SOC made of dozens of tenants in a single CLI command : <code>meshroom up</code>.
-Because Meshroom projects are versioned, you can push and share SOC architectures via GitHub or your favorite forge, while keeping trace of every setup and provisioning processes executed.</p>
-<p>When your SOC grows to dozens of interoperated products, it becomes hard to visualize where data and controls flow between them. Meshroom provides an easy to use graph model documenting:
-* all capabilities exposed by the products you are using
-* all available integrations they offer to other products
-* all the active connections (know as <code>Plugs</code> within Meshroom) between products (aka <code>producer</code>/<code>consumer</code> and <code>trigger</code>/<code>executor</code> relationships)</p>
-<h3 id="as-a-developer-painless-developer-experience-to-build-and-publish-custom-product-additions">As a developer : painless developer experience to build and publish custom product additions</h3>
-<p>Many cybersecurity platforms offer extensibility capabilities via plugins, custom formats, custom rules, custom actions, <em>etc</em>. Here again, there's no accepted standard and every vendor defines its own approach (YAML files, python code, no-code workflows, <em>etc</em>). Yet, products interoperability often rely on contributing custom additions to one or both ends. Of course, this scope is often the worst documented part, and developers are left with trial-and-error quasi-reverse ninja approaches to understand how to make product A with product B communicate. In the end, you'll eventually succeed in getting a working plugin, but then face the un-coordinated maze of extension homologation processes each vendor mandates to make your contribution public.</p>
-<p>Meshroom helps cybersecurity vendors to expose a single standard contribution model for:
-* setting up custom software additions when interoperability mandates so
-* compiling everything into a product plugin suitable for publication
-* publishing as a PR to GitHub or other marketplaces</p>
+<p>Setting up a SOC is also a time-consuming operation. Sadly, MSSPs in charge of many similar information systems will often <strong>repeat</strong> those very same time-consuming steps again and again, switching from one solution's configuration interface to another one's console. Eventually, this will involve wildly manipulating API keys and admin forms, resulting in errors, security holes and blind spots. Many MSSPs maintain a <strong>run book</strong> of manual setup steps, and most of them <strong>automate</strong> part of those steps to get a SOC up-and-running within, say, days or perhaps hours...</p>
+<p>Meshroom helps DevSec operators to <strong>setup a full meshed SOC</strong> made of dozens of tenants in a single CLI command : <code>meshroom up</code>.
+Because Meshroom projects are <strong>versioned</strong>, you can push and <strong>share SOC architectures</strong> via GitHub or your favorite forge, while keeping trace of every setup and provisioning processes executed. You can think of <code>meshroom up</code> as the cyber mesh equivalent of Infrastructure-as-code's <code>terraform apply</code> or containerized stack's <code>docker compose up</code>.</p>
+<p>When your SOC grows to dozens of interoperated products, it becomes hard to visualize where data and controls flow between them. Meshroom provides an easy to use graph model documenting:</p>
+<ul>
+<li>all capabilities exposed by the products you are using</li>
+<li>all available integrations they offer to other products</li>
+<li>all the active connections (know as <code>Plugs</code> within Meshroom) between products (aka <code>producer</code>/<code>consumer</code> and <code>trigger</code>/<code>executor</code> relationships)</li>
+</ul>
+<h3 id="as-a-developer-painless-dx-to-build-and-publish-custom-product-additions">As a developer : painless DX to build and publish custom product additions</h3>
+<p>Many cybersecurity platforms offer extensibility capabilities via <strong>plugins</strong>, custom formats, custom rules, custom actions, <em>etc</em>. Here again, there's no accepted standard and every vendor defines its own approach (YAML files, python code, no-code workflows, <em>etc</em>). Yet, products interoperability often rely on <strong>contributing custom additions</strong> to one or both ends. Of course, this scope is often badly documented, and developers are left with trial-and-error quasi-reverse ninja approaches to understand how to make product A talk to product B. In the end, you'll eventually succeed in getting a working plugin, but then face the un-coordinated maze of <strong>homologation processes</strong> each vendor mandates to make your contribution <strong>public</strong>.</p>
+<p>Meshroom helps cybersecurity vendors to expose a <strong>single standard contribution model</strong> for:
+* setting up <strong>custom software additions</strong> when interoperability mandates so
+* compiling everything into a product <strong>plugin</strong> suitable for publication
+* <strong>publishing</strong> as a PR to GitHub or other marketplaces</p>
+<p>Meshroom also ease the tedious "playground" phase where developers need to <strong>send</strong> test data to their trial 3rd-party instances, <strong>trigger</strong> remote commands from their workstation, <strong>watch</strong> results, make changes to their integration in an agile continous development workflow:
+* <code>meshroom produce</code> helps you sending data through plugged integrations
+* <code>meshroom watch</code> helps you watching data flowing through a plugged integration</p>
               
             </div>
           </div><footer>
@@ -170,5 +179,5 @@ Because Meshroom projects are versioned, you can push and share SOC architecture
 
 <!--
 MkDocs version : 1.6.1
-Build Date UTC : 2025-01-06 08:04:28.222696+00:00
+Build Date UTC : 2025-01-06 08:45:56.876176+00:00
 -->
