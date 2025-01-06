@@ -152,8 +152,7 @@ More precisely, it is an overlay of 2 graphs:</p>
 </ul>
 <h2 id="meshroom-project-structure">Meshroom project structure</h2>
 <p>A Meshroom project is a git-backed directory on your computer, that you can version and share via your favorite online git service. The local project itself has the following structure:</p>
-<p>````
-┃
+<pre><code>┃
 ┣━ products                      🮤━━━  All products available in the capabilities graph
 ┃  ┗━ product_a
 ┃     ┣━ definition.yaml              🮤━━━  Define capabilities of product_a
@@ -169,7 +168,7 @@ More precisely, it is an overlay of 2 graphs:</p>
 ┃
 ┣━ instances                   🮤━━━  Define the instances used in this project's mesh
 ┃  ┗━ product_a                   🮤━━━  Instances for product_a
-┃     ┗━ instance_a               🮤━━━  Some product_a's instance, here called "instance_a"
+┃     ┗━ instance_a               🮤━━━  Some product_a's instance, here called &quot;instance_a&quot;
 ┃        ┣━ config.yaml             🮤━━━  Non-sensitive configuration for instance_a
 ┃        ┗━ plugs                   🮤━━━  Plugs whose source is instance_a
 ┃           ┗━ instance_b                🮤━━━  Plugs whose destination is instance_b
@@ -177,7 +176,8 @@ More precisely, it is an overlay of 2 graphs:</p>
 ┃  ┗━ product_b
 ┃     ┗━ instance_product_b
 ┃        ┗━ ...
-┣━ secrets.gpg      🮤━━━  GPG-encrypted store of all instances' secrets</p>
+┣━ secrets.gpg      🮤━━━  GPG-encrypted store of all instances' secrets
+</code></pre>
 <p>This is a minimal example, your project may contain additional files, such as .gitignore, README.md and other documentation or scripts for automating stuff.</p>
               
             </div>
