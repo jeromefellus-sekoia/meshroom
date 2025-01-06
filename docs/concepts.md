@@ -101,5 +101,6 @@ A Meshroom project is a git-backed directory on your computer, that you can vers
 ┃     ┗━ instance_product_b
 ┃        ┗━ ...
 ┣━ secrets.gpg      🮤━━━  GPG-encrypted store of all instances' secrets
+````
 
 This is a minimal example, your project may contain additional files, such as .gitignore, README.md and other documentation or scripts for automating stuff.
