@@ -7,27 +7,27 @@ As defined by Gartner, a [Cybersecurity Mesh Architecture](https://www.gartner.c
 Adopting the CSMA and Meshroom's philosophy means choosing an interconnected ecosystem of high-quality products with specialized scopes rather than a captive all-in-one solution.
 It then means :
 
-- Adopting standard formats and protocols rather than proprietary ones to share data and informations between products (STIX, ECS, OCSF, OpenC2, syslog, CEF, *etc*)
+- Adopting standard formats and protocols rather than proprietary ones to share data and information between products (STIX, ECS, OCSF, OpenC2, syslog, CEF, *etc*)
 - Leveraging Open APIs to make your products communicate and control eachother
-- Exploiting products' extensibility via plugins and open-source components to strengthen user-defined interoperability
+- Exploiting products' extensibility via plugins and open-source components to encourage user-defined interoperability
 
 ## Who ?
 
 ### As a vendor : fight the N-to-N integration curse
 
-Cybersecurity vendors know it well : integrating with other cybersecurity products consumes **time and human resources**. Integration teams feel so sad when every vendor has to spend those resources to develop an integration with every other vendor, without factorization : this is the **N-to-N integration curse**. This curse mostly originates from:
+Cybersecurity vendors know it well : integrating with other cybersecurity products burns **time and human resources**. Integration teams feel so sad when every vendor has to spend those resources developing an integration with every other vendor, without work factorization : this is the **N-to-N integration curse**. This curse mostly originates from:
 
 * Poor adoption of **standard formats, protocols and API layouts** to interoperate cybersecurity solutions
 * Lack of **open resources and documentation** to start communicating and controling a given product
-* Small actors are overwhelmed by the numerous integration opportunities with major actors, but won't **factorise** their contribution to make one integration suit all 3rd-party products
+* Small actors are overwhelmed by the numerous integration opportunities with major actors, but won't **factorise** their contributions to make one integration suit all 3rd-party products
 * Every actor must keep **hundreds of vendor-specific integrations** up to date according to hundreds of **non-coordinated roadmaps** and constantly breaking changes
 
 Meshroom helps cybersecurity vendors **build integrations** between their products and other solutions, keeping the integration burden as low a possible.
-To do so, `meshroom` comes with a set of predefined **product templates** categorized according to Gartner's [Hype Cycle for Security Operations, 2024](https://www.gartner.com/interactive/hc/5622491?ref=solrAll&refval=433161127) that help you scaffolding full product definitions. By publishing your product's functional surface from one of this template, you encourage the adoption of open API layouts, formats and protocols. Whereby, you contributes to turn the N-to-N integration burden into an ideal repository of N reusable product definitions, where every new vendor can effortlessly plug with the N previously declared products.
+To do so, `meshroom` comes with a set of predefined **product templates** categorized according to Gartner's [Hype Cycle for Security Operations, 2024](https://www.gartner.com/interactive/hc/5622491?ref=solrAll&refval=433161127) that help you scaffolding full product definitions. By publishing your product's functional surface from one of this template, you encourage the adoption of open API layouts, formats and protocols. Whereby, you contributes to turn the N-to-N integration burden into an ideal repository of N **reusable product definitions**, where every new vendor can effortlessly plug with the N previously declared products.
 
 ### As a MSSP : setup a full cybersecurity mesh via declarative and versionable manifests
 
-Setting up a SOC is also a time-consuming operation. Sadly, MSSPs in charge of many similar information systems will often **repeat** those very same time-consuming steps again and again, switching from one solution's configuration interface to another one's console. Eventually, this will involve wildly manipulating API keys and admin forms, resulting in errors, security holes and blind spots. Many MSSPs maintain a **run book** of manual setup steps, and most of them **automate** part of those steps to get a SOC up-and-running within, say, days or perhaps hours...
+Setting up a SOC is also a time-consuming operation. Sadly, MSSPs in charge of many similar information systems will often **repeat** those very same time-consuming steps again and again, switching from one solution's configuration interface to another one's admin console. Eventually, this will involve wildly manipulating API keys and admin forms, resulting in errors, security holes and blind spots. Many MSSPs maintain a **run book** of manual setup steps, and most of them **automate** part of those steps to get a SOC up-and-running within, say, days or perhaps hours...
 
 Meshroom helps DevSec operators to **setup a full meshed SOC** made of dozens of tenants in a single CLI command : `meshroom up`.
 Because Meshroom projects are **versioned**, you can push and **share SOC architectures** via GitHub or your favorite forge, while keeping trace of every setup and provisioning processes executed. You can think of `meshroom up` as the cyber mesh equivalent of Infrastructure-as-code's `terraform apply` or containerized stack's `docker compose up`.
@@ -48,7 +48,7 @@ Meshroom helps cybersecurity vendors to expose a **single standard contribution 
 * compiling everything into a product **plugin** suitable for publication
 * **publishing** as a PR to GitHub or other marketplaces
 
-Meshroom also ease the tedious "playground" phase where developers need to **send** test data to their trial 3rd-party instances, **trigger** remote commands from their workstation, **watch** results, make changes to their integration in an agile continous development workflow:
+Meshroom also eases the tedious "playground" phase where developers need to **send** test data to their trial 3rd-party instances, **trigger** remote commands from their workstation, **watch** results, make changes to their integration in an agile continous development workflow:
 
 * `meshroom produce` helps you sending data through plugged integrations
 * `meshroom watch` helps you watching data flowing through a plugged integration
