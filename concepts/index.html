@@ -129,14 +129,16 @@ More precisely, it is an overlay of 2 graphs:</p>
 <p>You can start a new meshroom project via <code>meshroom init &lt;path&gt;</code>. This will setup a new local git repo and few minimal files in this directory so that you can start building your integrations and mesh architecture. You can then directly add a git remote via <code>git remote add &lt;remote&gt; &lt;remote_url&gt;</code> such as a GitHub repo to save, share and publish your project via <code>git push</code>, and use the directory as a classical Git repository.</p>
 <p>Subsequent meshroom commands must be executed at the <code>&lt;path&gt;</code>'s root and will manipulate its files hierarchy.</p>
 <h2 id="product">Product</h2>
-<p>In Meshroom, a Product is the definition of a cybersecurity product's capabilities. A Product is primarily defined via a YAML file with:
-* a <strong>name</strong>
-* a textual <strong>description</strong> of its functional surface and its role in the security ecosystem
-* a set of <strong>tags</strong>, expliciting the product category it belongs to (<em>e.g.</em>, EDR, EASM, SIEM, etc)
-* a <code>produces</code> attribute listing the <strong>producer</strong> capabilities of the product (which <strong>topics</strong> the product is able to produce data for)
-* a <code>consumes</code> attribute, listing the <strong>consumer</strong> capabilities of the product
-* a <code>triggers</code> attribute, listing the <strong>trigger</strong> capabilities of the product
-* a <code>executes</code> attribute, listing the <strong>executor</strong> capabilities of the product</p>
+<p>In Meshroom, a Product is the definition of a cybersecurity product's capabilities. A Product is primarily defined via a YAML file with:</p>
+<ul>
+<li>a <strong>name</strong></li>
+<li>a textual <strong>description</strong> of its functional surface and its role in the security ecosystem</li>
+<li>a set of <strong>tags</strong>, expliciting the product category it belongs to (<em>e.g.</em>, EDR, EASM, SIEM, etc)</li>
+<li>a <code>produces</code> attribute listing the <strong>producer</strong> capabilities of the product (which <strong>topics</strong> the product is able to produce data for)</li>
+<li>a <code>consumes</code> attribute, listing the <strong>consumer</strong> capabilities of the product</li>
+<li>a <code>triggers</code> attribute, listing the <strong>trigger</strong> capabilities of the product</li>
+<li>a <code>executes</code> attribute, listing the <strong>executor</strong> capabilities of the product</li>
+</ul>
 <p>Here is a example consumer capability:</p>
 <pre><code class="language-yaml">...
 consumes:
@@ -180,11 +182,13 @@ consumes:
 <p><code>meshroom configure &lt;instance_name&gt;</code></p>
 <p>Your project's Instances and GPG store form a handy bundle of your full SOC's product constellation, versioning and securely storing all the necessary material to administrate and interoperate this ecosystem in a well-defined hierarchy.</p>
 <h2 id="plug">Plug</h2>
-<p>Instances communicate with eachother via so-called <strong>Plugs</strong>. Plugs are the edge of your mesh's graph. A Plug makes use of:
-* a source Integration on the source product at the edge's origin
-* a destination Integration on the destination product at the opposite end.
+<p>Instances communicate with eachother via so-called <strong>Plugs</strong>. Plugs are the edge of your mesh's graph. A Plug makes use of:</p>
+<ul>
+<li>a source Integration on the source product at the edge's origin</li>
+<li>a destination Integration on the destination product at the opposite end.
 A Plug always carries a single topic, in a single mode. When setting up a Plug using 2 integrations, the plug inherits its format and other constraints from the most specific combination of both integrations' constraints.
-When no matching constraint set can be found out of all existing Integrations, the Plug can't be created and the two product instances won't be able to communicate. You can then build new integration, perhaps more generic, to cover your desired Plug's need, on one or both ends of the edge (see <a href="#integrations">Integrations</a>).</p>
+When no matching constraint set can be found out of all existing Integrations, the Plug can't be created and the two product instances won't be able to communicate. You can then build new integration, perhaps more generic, to cover your desired Plug's need, on one or both ends of the edge (see <a href="#integrations">Integrations</a>).</li>
+</ul>
 <p>You can plug two Instances using</p>
 <p><code>meshroom plug &lt;source_instance&gt; &lt;destination_instance&gt; &lt;topic&gt; [options...]</code></p>
 <p>and unplug an existing plug using</p>
@@ -211,14 +215,16 @@ When no matching constraint set can be found out of all existing Integrations, t
 </ul>
 <p>via one of the decorators defined in the <code>meshroom.decorators</code> package:</p>
 <p>hook decorator,called upon,usage,required
-@setup,<code>meshroom up</code>,define an automated setup step to get a plug up-and-running on a given instance,optional
-@teardown,<code>meshroom down</code>,define an automated step to shutdown and cleanup a plug from a given instance,optional
-@scaffold,<code>meshroom create integration</code>,generate files for a new integration for a certain topic,optional
-@pull,<code>meshroom pull</code>,generate integrations by pulling the vendor's online integration catalog,required
-@publish,<code>meshroom publish</code>,submit all defined integrations to the vendor's catalog for public homologation,required
-@produce,<code>meshroom produce</code>,send data to the plug's destination for testing,required
-@watch,<code>meshroom watch</code>,inspect data flowing through the plug,required</p>
-<p>Hooks may specify an order (an integer or 'first'/'last' keywords) field to order the setup sequence.</p>
+| @setup    | <code>meshroom up</code>                 | define an automated setup step to get a plug up-and-running on a given instance | optional |
+| --------- | ----------------------------- | ------------------------------------------------------------------------------- | -------- |
+| @teardown | <code>meshroom down</code>               | define an automated step to shutdown and cleanup a plug from a given instance   | optional |
+| @scaffold | <code>meshroom create integration</code> | generate files for a new integration for a certain topic                        | optional |
+| @pull     | <code>meshroom pull</code>               | generate integrations by pulling the vendor's online integration catalog        | required |
+| @publish  | <code>meshroom publish</code>            | submit all defined integrations to the vendor's catalog for public homologation | required |
+| @produce  | <code>meshroom produce</code>            | send data to the plug's destination for testing                                 | required |
+| @watch    | <code>meshroom watch</code>              | inspect data flowing through the plug                                           | required |
+|           |                               |                                                                                 |          |
+Hooks may specify an order (an integer or 'first'/'last' keywords) field to order the setup sequence.</p>
 <p>Hooks marked as "required" are required for the corresponding Meshroom command to work on the said product. They are not mandatory for a product definition to be valid, but not all meshroom command will be available until these hooks are implemented.</p>
 <h2 id="meshroom-project-structure">Meshroom project structure</h2>
 <p>A Meshroom project is a git-backed directory on your computer, that you can version and share via your favorite online git service. The local project itself has the following structure:</p>
