@@ -35,6 +35,7 @@ Subsequent meshroom commands must be executed at the `<path>`'s root and will ma
 ## Product
 
 In Meshroom, a Product is the definition of a cybersecurity product's capabilities. A Product is primarily defined via a YAML file with:
+
 * a **name**
 * a textual **description** of its functional surface and its role in the security ecosystem
 * a set of **tags**, expliciting the product category it belongs to (*e.g.*, EDR, EASM, SIEM, etc)
@@ -54,6 +55,7 @@ consumes:
           format: syslog
 ...
 ```
+
 This YAML strip tells that the product can **consume** the **events** topic in **pull mode** (aka active consumer, passive producer, as in HTTP GET) when events are formatted using ECS, and can consume events in **push mode** (aka passive consumer, active produver, as in syslog forwarding) as Syslog lines. Capabilities may be more generic (*e.g.* no format constraint) or more specific (*e.g.* add a protocol constraint to match). In all cases, two Products are said "interoperable" when we can find two corresponding capabilities
 
 * of complementary role (`consumes`->`produces` or `triggers`->`executes`)
@@ -115,6 +117,7 @@ Your project's Instances and GPG store form a handy bundle of your full SOC's pr
 ## Plug
 
 Instances communicate with eachother via so-called **Plugs**. Plugs are the edge of your mesh's graph. A Plug makes use of:
+
 * a source Integration on the source product at the edge's origin
 * a destination Integration on the destination product at the opposite end.
 A Plug always carries a single topic, in a single mode. When setting up a Plug using 2 integrations, the plug inherits its format and other constraints from the most specific combination of both integrations' constraints.
@@ -168,14 +171,15 @@ All hooks works by decorating vanilla python functions residing either inside
 via one of the decorators defined in the `meshroom.decorators` package:
 
 hook decorator,called upon,usage,required
-@setup,`meshroom up`,define an automated setup step to get a plug up-and-running on a given instance,optional
-@teardown,`meshroom down`,define an automated step to shutdown and cleanup a plug from a given instance,optional
-@scaffold,`meshroom create integration`,generate files for a new integration for a certain topic,optional
-@pull,`meshroom pull`,generate integrations by pulling the vendor's online integration catalog,required
-@publish,`meshroom publish`,submit all defined integrations to the vendor's catalog for public homologation,required
-@produce,`meshroom produce`,send data to the plug's destination for testing,required
-@watch,`meshroom watch`,inspect data flowing through the plug,required
-
+| @setup    | `meshroom up`                 | define an automated setup step to get a plug up-and-running on a given instance | optional |
+| --------- | ----------------------------- | ------------------------------------------------------------------------------- | -------- |
+| @teardown | `meshroom down`               | define an automated step to shutdown and cleanup a plug from a given instance   | optional |
+| @scaffold | `meshroom create integration` | generate files for a new integration for a certain topic                        | optional |
+| @pull     | `meshroom pull`               | generate integrations by pulling the vendor's online integration catalog        | required |
+| @publish  | `meshroom publish`            | submit all defined integrations to the vendor's catalog for public homologation | required |
+| @produce  | `meshroom produce`            | send data to the plug's destination for testing                                 | required |
+| @watch    | `meshroom watch`              | inspect data flowing through the plug                                           | required |
+|           |                               |                                                                                 |          |
 Hooks may specify an order (an integer or 'first'/'last' keywords) field to order the setup sequence.
 
 Hooks marked as "required" are required for the corresponding Meshroom command to work on the said product. They are not mandatory for a product definition to be valid, but not all meshroom command will be available until these hooks are implemented.
