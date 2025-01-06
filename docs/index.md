@@ -43,10 +43,12 @@ When your SOC grows to dozens of interoperated products, it becomes hard to visu
 Many cybersecurity platforms offer extensibility capabilities via **plugins**, custom formats, custom rules, custom actions, *etc*. Here again, there's no accepted standard and every vendor defines its own approach (YAML files, python code, no-code workflows, *etc*). Yet, products interoperability often rely on **contributing custom additions** to one or both ends. Of course, this scope is often badly documented, and developers are left with trial-and-error quasi-reverse ninja approaches to understand how to make product A talk to product B. In the end, you'll eventually succeed in getting a working plugin, but then face the un-coordinated maze of **homologation processes** each vendor mandates to make your contribution **public**.
 
 Meshroom helps cybersecurity vendors to expose a **single standard contribution model** for:
+
 * setting up **custom software additions** when interoperability mandates so
 * compiling everything into a product **plugin** suitable for publication
 * **publishing** as a PR to GitHub or other marketplaces
 
 Meshroom also ease the tedious "playground" phase where developers need to **send** test data to their trial 3rd-party instances, **trigger** remote commands from their workstation, **watch** results, make changes to their integration in an agile continous development workflow:
+
 * `meshroom produce` helps you sending data through plugged integrations
 * `meshroom watch` helps you watching data flowing through a plugged integration
