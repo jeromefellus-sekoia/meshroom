@@ -154,15 +154,31 @@ Ideally, you won't ever need to switch to your products' admin consoles. You may
 
 ## Hooks
 
-TODO
+Many products require complex programmatic steps to setup an actual interop with a 3rd-party. The classical approach is to follow manual recipes from the products documentation, navigate through multiple admin panels and configuration forms to open the desired channel between two products. One of the main goals of Meshroom is to rationalize and fully automate these steps, so that `meshroom up` can submit the appropriate sequence of operations to all instances to configure the full mesh without direct user intervention.
 
-* setup
-* teardown
-* scaffold
-* pull
-* publish
-* produce
-* watch
+Willingness to favor remote tenant configuration via open APIs vary across vendors and solutions. Some products are simply not remote-configurable at all (think of adding syslog forwarding to an unexposed NGINX reverse-proxy). Others may require a very short but mandatory user navigation to their admin panel. Hopefully, more and more vendors embrace the CSMA philosophy and allow for completely remote configuration by 3rd-party providers.
+
+Meshroom takes into account those various regimes by allowing Products to define python hooks. Hooks are python decorated functions that will get executed in sequence upon `meshroom up`, taking the whole integration's context as arguments. Vendors and integrators can provide such hooks to implement automated procedures to remote-configure their product's capabilities. You can even provide boilerplate hooks to help user scaffold new integrations based on the products native extensibility features (plugins, custom formats, code addtions, *etc*), and publish hooks to guide the user through the vendor's homologation process required to publish their contribution into the product's official integrations catalog (marketplace, github PRs, *etc*).
+
+All hooks works by decorating vanilla python functions residing either inside
+
+* the product's directory (for product-wide generic hooks)
+* a specific integration's subdirectory (for plug-specific hooks that depend on a specific products couple)
+
+via one of the decorators defined in the `meshroom.decorators` package:
+
+hook decorator,called upon,usage,required
+@setup,`meshroom up`,define an automated setup step to get a plug up-and-running on a given instance,optional
+@teardown,`meshroom down`,define an automated step to shutdown and cleanup a plug from a given instance,optional
+@scaffold,`meshroom create integration`,generate files for a new integration for a certain topic,optional
+@pull,`meshroom pull`,generate integrations by pulling the vendor's online integration catalog,required
+@publish,`meshroom publish`,submit all defined integrations to the vendor's catalog for public homologation,required
+@produce,`meshroom produce`,send data to the plug's destination for testing,required
+@watch,`meshroom watch`,inspect data flowing through the plug,required
+
+Hooks may specify an order (an integer or 'first'/'last' keywords) field to order the setup sequence.
+
+Hooks marked as "required" are required for the corresponding Meshroom command to work on the said product. They are not mandatory for a product definition to be valid, but not all meshroom command will be available until these hooks are implemented.
 
 ## Meshroom project structure
 
