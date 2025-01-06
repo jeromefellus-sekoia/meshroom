@@ -2,3 +2,5 @@ site_name: Meshroom
 theme:
   name: readthedocs
   highlightjs: true
+extra_css:
+  - style.css

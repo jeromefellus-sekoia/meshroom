@@ -121,7 +121,7 @@ Instances communicate with eachother via so-called **Plugs**. Plugs are the edge
 * a source Integration on the source product at the edge's origin
 * a destination Integration on the destination product at the opposite end.
 A Plug always carries a single topic, in a single mode. When setting up a Plug using 2 integrations, the plug inherits its format and other constraints from the most specific combination of both integrations' constraints.
-When no matching constraint set can be found out of all existing Integrations, the Plug can't be created and the two product instances won't be able to communicate. You can then build new integration, perhaps more generic, to cover your desired Plug's need, on one or both ends of the edge (see [Integrations](#integrations)).
+When no matching constraint set can be found out of all existing Integrations, the Plug can't be created and the two product instances won't be able to communicate. You can then build new integration, perhaps more generic, to cover your desired Plug's need, on one or both ends of the edge (see [Integration](#integration)).
 
 You can plug two Instances using
 
@@ -170,16 +170,17 @@ All hooks works by decorating vanilla python functions residing either inside
 
 via one of the decorators defined in the `meshroom.decorators` package:
 
-hook decorator,called upon,usage,required
-| @setup    | `meshroom up`                 | define an automated setup step to get a plug up-and-running on a given instance | optional |
-| --------- | ----------------------------- | ------------------------------------------------------------------------------- | -------- |
-| @teardown | `meshroom down`               | define an automated step to shutdown and cleanup a plug from a given instance   | optional |
-| @scaffold | `meshroom create integration` | generate files for a new integration for a certain topic                        | optional |
-| @pull     | `meshroom pull`               | generate integrations by pulling the vendor's online integration catalog        | required |
-| @publish  | `meshroom publish`            | submit all defined integrations to the vendor's catalog for public homologation | required |
-| @produce  | `meshroom produce`            | send data to the plug's destination for testing                                 | required |
-| @watch    | `meshroom watch`              | inspect data flowing through the plug                                           | required |
-|           |                               |                                                                                 |          |
+| hook decorator | called upon                   | usage                                                                           | required |
+| -------------- | ----------------------------- | ------------------------------------------------------------------------------- | -------- |
+| @setup         | `meshroom up`                 | define an automated setup step to get a plug up-and-running on a given instance | optional |
+| @teardown      | `meshroom down`               | define an automated step to shutdown and cleanup a plug from a given instance   | optional |
+| @scaffold      | `meshroom create integration` | generate files for a new integration for a certain topic                        | optional |
+| @pull          | `meshroom pull`               | generate integrations by pulling the vendor's online integration catalog        | required |
+| @publish       | `meshroom publish`            | submit all defined integrations to the vendor's catalog for public homologation | required |
+| @produce       | `meshroom produce`            | send data to the plug's destination for testing                                 | required |
+| @watch         | `meshroom watch`              | inspect data flowing through the plug                                           | required |
+|                |                               |                                                                                 |          |
+
 Hooks may specify an order (an integer or 'first'/'last' keywords) field to order the setup sequence.
 
 Hooks marked as "required" are required for the corresponding Meshroom command to work on the said product. They are not mandatory for a product definition to be valid, but not all meshroom command will be available until these hooks are implemented.
