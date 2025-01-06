@@ -60,6 +60,7 @@ secrets GPG
 `meshroom up`
 `meshroom down`
 
+
 ## Hooks
 
 * setup
@@ -69,3 +70,36 @@ secrets GPG
 * publish
 * produce
 * watch
+
+## Meshroom project structure
+
+A Meshroom project is a git-backed directory on your computer, that you can version and share via your favorite online git service. The local project itself has the following structure:
+
+````
+┃
+┣━ products                      🮤━━━  All products available in the capabilities graph
+┃  ┗━ product_a
+┃     ┣━ definition.yaml              🮤━━━  Define capabilities of product_a
+┃     ┣━ setup.py                     🮤━━━  Various python files with generic hooks for product_a's integrations
+┃     ┗━ integrations                 🮤━━━  All integration offered by product_a
+┃        ┗━ product_b                 🮤━━━  All integration offered by product_a with product_b
+┃           ┣━ events_consumer.yaml       🮤━━━  An integration product_a -[events]-> product_b in push mode
+┃           ┣━ events_consumer.py         🮤━━━  Hooks for the above integration
+┃           ┣━ events_consumer_pull.yaml  🮤━━━  An integration product_a -[events]-> product_b in pull mode
+┃           ┗━ events_consumer_pull.py    🮤━━━  Hooks for this latter integration
+┃  ┗━ product_b
+┃     ┗━ ...                     🮤━━━ same structure for each product...
+┃
+┣━ instances                   🮤━━━  Define the instances used in this project's mesh
+┃  ┗━ product_a                   🮤━━━  Instances for product_a
+┃     ┗━ instance_a               🮤━━━  Some product_a's instance, here called "instance_a"
+┃        ┣━ config.yaml             🮤━━━  Non-sensitive configuration for instance_a
+┃        ┗━ plugs                   🮤━━━  Plugs whose source is instance_a
+┃           ┗━ instance_b                🮤━━━  Plugs whose destination is instance_b
+┃              ┗━ event_consumer_pull.yaml   🮤━━━  Config for plug instance_a -[events]-> instance_b in pull mode
+┃  ┗━ product_b
+┃     ┗━ instance_product_b
+┃        ┗━ ...
+┣━ secrets.gpg      🮤━━━  GPG-encrypted store of all instances' secrets
+
+This is a minimal example, your project may contain additional files, such as .gitignore, README.md and other documentation or scripts for automating stuff.
