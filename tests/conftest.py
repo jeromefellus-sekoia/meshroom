@@ -3,6 +3,8 @@ from pathlib import Path
 import shutil
 import pytest
 
+os.environ["PASSWORD"] = "password"
+
 
 PROJECT_DIR = Path(__file__).parent / "data"
 

@@ -1,4 +1,11 @@
+from getpass import getpass
+import os
 import click
+
+
+def prompt_password(prompt: str):
+    """Prompt the user for a hidden password"""
+    return os.getenv("PASSWORD") or getpass(prompt)
 
 
 def prompt(prompt: str):

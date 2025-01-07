@@ -4,6 +4,8 @@ from hashlib import md5
 import json
 import gnupg
 
+from meshroom.interaction import prompt_password
+
 
 def get_gpg_id():
     """Generate a GPG ID based on the current user and the project directory"""
@@ -45,7 +47,7 @@ def write_secrets(secrets: dict, master_key: str | None = None):
         res = gpg.gen_key(
             gpg.gen_key_input(
                 name_email=gpg_id,
-                passphrase=master_key or getpass(f"Enter a Master Key to for this Meshroom project's secrets store (will use {gpg_id} GPG identity): "),
+                passphrase=master_key or prompt_password(f"Enter a Master Key to for this Meshroom project's secrets store (will use {gpg_id} GPG identity): "),
             )
         )
         if not res:
@@ -60,7 +62,7 @@ def get_secret(key: str, prompt_if_not_exist: str | bool = False):
     """Get a secret from the secrets store"""
 
     if not (v := read_secrets().get(key)) and prompt_if_not_exist:
-        v = set_secret(key, getpass(prompt_if_not_exist))
+        v = set_secret(key, prompt_password(prompt_if_not_exist))
 
     return v
 
