@@ -9,6 +9,31 @@ from meshroom import model
 import sys
 
 
+# Autocompletions
+
+
+def autocomplete_search(func):
+    """Generic autocomplete function for search arguments"""
+
+    def autocomplete(ctx, param, incomplete):
+        print(incomplete)
+        return [getattr(x, "name", None) or str(x) for x in func(search=incomplete)]
+
+    return autocomplete
+
+
+def autocomplete(func):
+    """Generic autocomplete function"""
+
+    def autocomplete(ctx, param, incomplete):
+        return [getattr(x, "name", None) or str(x) for x in func()]
+
+    return autocomplete
+
+
+# Commands
+
+
 @click.group()
 @click.option("-p", "--path", default=".", help="Path to the meshroom project directory")
 def meshroom(path):
@@ -72,8 +97,8 @@ def list_products(wide: bool = False, search: str | None = None):
 
 
 @_list.command(name="integrations")
-@click.argument("product", required=False)
-@click.argument("target_product", required=False)
+@click.argument("product", required=False, shell_complete=autocomplete_search(model.list_products))
+@click.argument("target_product", required=False, shell_complete=autocomplete_search(model.list_products))
 @click.option("--topic", "-t", help="Filter by topic")
 def list_integrations(
     product: str | None = None,
@@ -95,7 +120,7 @@ def list_integrations(
 
 @_list.command(name="instances")
 @click.argument("search", required=False)
-@click.option("--product", "-p", help="Filter by product")
+@click.option("--product", "-p", help="Filter by product", shell_complete=autocomplete_search(model.list_products))
 def list_instances(product: str | None = None, search: str | None = None):
     """List all instances"""
     print(
@@ -107,8 +132,8 @@ def list_instances(product: str | None = None, search: str | None = None):
 
 
 @_list.command(name="plugs")
-@click.argument("src_instance", required=False)
-@click.argument("dst_instance", required=False)
+@click.argument("src_instance", required=False, shell_complete=autocomplete_search(model.list_instances))
+@click.argument("dst_instance", required=False, shell_complete=autocomplete_search(model.list_instances))
 @click.option("--topic", "-t", required=False)
 @click.option("--mode", "-m", type=click.Choice(Mode.__args__), required=False)
 def list_plugs(
@@ -127,8 +152,8 @@ def list_plugs(
 
 
 @meshroom.command()
-@click.argument("instance", required=False)
-@click.argument("target_instance", required=False)
+@click.argument("instance", required=False, shell_complete=autocomplete_search(model.list_instances))
+@click.argument("target_instance", required=False, shell_complete=autocomplete_search(model.list_instances))
 @click.argument("topic", required=False)
 @click.argument("mode", required=False, type=click.Choice(Mode.__args__))
 def up(
@@ -142,6 +167,10 @@ def up(
 
 
 @meshroom.command()
+@click.argument("instance", required=False, shell_complete=autocomplete_search(model.list_instances))
+@click.argument("target_instance", required=False, shell_complete=autocomplete_search(model.list_instances))
+@click.argument("topic", required=False)
+@click.argument("mode", required=False, type=click.Choice(Mode.__args__))
 def down(
     instance: str | None = None,
     target_instance: str | None = None,
@@ -153,8 +182,8 @@ def down(
 
 
 @meshroom.command()
-@click.argument("src_instance")
-@click.argument("dst_instance")
+@click.argument("src_instance", shell_complete=autocomplete_search(model.list_instances))
+@click.argument("dst_instance", shell_complete=autocomplete_search(model.list_instances))
 @click.argument("topic")
 @click.option("--mode", "-m", type=click.Choice(Mode.__args__), required=False)
 @click.option("--format", "-f", type=str, required=False)
@@ -186,8 +215,8 @@ def create():
 
 
 @create.command(name="integration")
-@click.argument("product")
-@click.argument("target_product")
+@click.argument("product", shell_complete=autocomplete_search(model.list_products))
+@click.argument("target_product", shell_complete=autocomplete_search(model.list_products))
 @click.argument("topic")
 @click.argument("role", type=click.Choice(Role.__args__))
 @click.option("--mode", type=click.Choice(Mode.__args__), default="push")
@@ -231,7 +260,7 @@ def create_product(
 
 
 @create.command(name="capability")
-@click.argument("product")
+@click.argument("product", shell_complete=autocomplete_search(model.list_products))
 @click.argument("topic")
 @click.argument("role", type=click.Choice(Role.__args__))
 @click.option("--mode", "-m", type=click.Choice(Mode.__args__), default="push")
@@ -248,7 +277,7 @@ def create_capability(
 
 
 @meshroom.command()
-@click.argument("product")
+@click.argument("product", shell_complete=autocomplete_search(model.list_products))
 def pull(
     product: str,
 ):
@@ -261,7 +290,7 @@ def pull(
 
 
 @meshroom.command()
-@click.argument("product")
+@click.argument("product", shell_complete=autocomplete_search(model.list_products))
 @click.argument("name", required=False)
 @click.option("--read-secret", "-s", multiple=True, help="Read a one-line secret from stdin (can be supplied multiple times)")
 def add(
@@ -284,7 +313,7 @@ def add(
 
 
 @meshroom.command()
-@click.argument("instance")
+@click.argument("instance", shell_complete=autocomplete_search(model.list_instances))
 @click.option("--read-secret", "-s", multiple=True, help="Read a one-line secret from stdin (can be supplied multiple times)")
 def configure(
     instance: str,
@@ -305,7 +334,7 @@ def configure(
 
 
 @meshroom.command()
-@click.argument("instance")
+@click.argument("instance", shell_complete=autocomplete_search(model.list_instances))
 @click.argument("product", required=False)
 def remove(
     instance: str,
@@ -316,8 +345,8 @@ def remove(
 
 
 @meshroom.command()
-@click.argument("src_instance")
-@click.argument("dst_instance")
+@click.argument("src_instance", shell_complete=autocomplete_search(model.list_instances))
+@click.argument("dst_instance", shell_complete=autocomplete_search(model.list_instances))
 @click.argument("topic")
 @click.option("--mode", type=click.Choice(Mode.__args__))
 def unplug(
@@ -332,8 +361,8 @@ def unplug(
 
 @meshroom.command()
 @click.argument("topic")
-@click.argument("instance")
-@click.argument("dst_instance", required=False)
+@click.argument("instance", shell_complete=autocomplete_search(model.list_instances))
+@click.argument("dst_instance", required=False, shell_complete=autocomplete_search(model.list_instances))
 @click.option("--mode", type=click.Choice(Mode.__args__))
 def watch(
     topic: str,
@@ -354,8 +383,8 @@ def watch(
 
 @meshroom.command()
 @click.argument("topic")
-@click.argument("instance")
-@click.argument("dst_instance", required=False)
+@click.argument("instance", shell_complete=autocomplete_search(model.list_instances))
+@click.argument("dst_instance", required=False, shell_complete=autocomplete_search(model.list_instances))
 @click.option("--mode", type=click.Choice(Mode.__args__))
 def produce(
     topic: str,
@@ -375,8 +404,8 @@ def produce(
 
 @meshroom.command()
 @click.argument("topic")
-@click.argument("instance")
-@click.argument("dst_instance", required=False)
+@click.argument("instance", shell_complete=autocomplete_search(model.list_instances))
+@click.argument("dst_instance", required=False, shell_complete=autocomplete_search(model.list_instances))
 @click.option("--mode", type=click.Choice(Mode.__args__))
 @click.option("--param", "-p", multiple=True)
 def execute(
@@ -404,8 +433,8 @@ def execute(
 
 @meshroom.command()
 @click.argument("topic")
-@click.argument("instance")
-@click.argument("dst_instance", required=False)
+@click.argument("instance", shell_complete=autocomplete_search(model.list_instances))
+@click.argument("dst_instance", required=False, shell_complete=autocomplete_search(model.list_instances))
 @click.option("--mode", type=click.Choice(Mode.__args__))
 @click.option("--param", "-p", multiple=True)
 def trigger(
@@ -432,8 +461,8 @@ def trigger(
 
 
 @meshroom.command()
-@click.argument("product", required=False)
-@click.argument("target_product", required=False)
+@click.argument("product", required=False, shell_complete=autocomplete_search(model.list_products))
+@click.argument("target_product", required=False, shell_complete=autocomplete_search(model.list_products))
 @click.argument("topic", required=False)
 @click.argument("role", type=click.Choice(Role.__args__), required=False)
 @click.option("--mode", "-m", type=click.Choice(Mode.__args__))
