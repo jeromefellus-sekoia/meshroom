@@ -102,11 +102,11 @@
 <p>This tutorial guides you through</p>
 <ul>
 <li>integrating a dummy product in a meshroom project's capabilities graph</li>
-<li>instanciating a mesh</li>
+<li>instantiating a mesh</li>
 <li>setting up this mesh against real product tenants</li>
 <li>playing and inspect data flowing through it</li>
 </ul>
-<p>We take an hypothetical intelligence-driven EDR called "myedr" as the examplar product to showcase Meshroom CLI's functionalities and underlying concepts</p>
+<p>We take an hypothetical intelligence-driven EDR called "myedr" as the examplar product to showcase the Meshroom CLI and underlying concepts.</p>
 <h3 id="0-setup-a-meshroom-project">0. Setup a meshroom project</h3>
 <p>A meshroom project is a git-backed directory on your computer. Let's setup one via</p>
 <pre><code class="language-bash">meshroom init &lt;path&gt;
@@ -115,13 +115,13 @@ cd &lt;path&gt;
 <p>This has scaffolded a local git repo with two directories: <code>products</code> and <code>instances</code></p>
 <h3 id="1-gather-knowledge-about-existing-products">1. Gather knowledge about existing products</h3>
 <p>In Meshroom's spirit, users may have already shared products definitions via, say, github.com, so you can browse publicly shared meshroom repos for products of interest to build your mesh.</p>
-<p>Imagine we want to incorporate a Sekoia.io SOC platform tenant into our mesh. We can leverage the existing definitions from https://github.com/jeromefellus-sekoia/meshroom/tree/master/example/products/sekoia, by simply copying the subdirectory to our project's <code>products/</code> folder.</p>
-<p>Happily, the sekoia product contains <code>@pull</code> hooks, allowing us to gather the whole set of integration available between Sekoia.io and 3rd-party products from Sekoia's official integrations catalog (here, so-called intake formats and playbook actions). Calling</p>
+<p>Imagine we want to incorporate a Sekoia.io SOC platform tenant into our mesh. We can leverage existing definitions from <a href="https://github.com/jeromefellus-sekoia/meshroom/tree/master/example/products/sekoia">https://github.com/jeromefellus-sekoia/meshroom/tree/master/example/products/sekoia</a>, by simply copying the subdirectory to our project's <code>products/</code> folder.</p>
+<p>Happily, the sekoia product contains <code>@pull</code> hooks, allowing us to gather from Sekoia's official catalog the whole set of integrations available between Sekoia.io and 3rd-party products (here, so-called intake formats and playbook actions). Calling</p>
 <pre><code class="language-bash">meshroom pull sekoia
 </code></pre>
-<p>yields us dozen of new products with their own capabilities to the extent of what Sekoia.io can interop with. You'd probably need to gather and pull more product knowledge to enrich those 3rd-party product definitions and reach a sufficiently large and accurate capabilities graph to start instanciating a mesh from it.</p>
+<p>yields dozen of new products along with their own capabilities to the extent of what Sekoia.io can interop with. You'd probably need to gather and pull more product knowledge to enrich those 3rd-party product definitions and reach a sufficiently large and accurate capabilities graph to start instantiating a mesh from it.</p>
 <h3 id="2-integrate-your-product">2. Integrate your product</h3>
-<p>This tutorial assumes we're a vendor of a new product that didn't get a meshroom definition yet. So let's create it from scratch, or better, using one of the provided product capabilities templates, found under https://github.com/jeromefellus-sekoia/meshroom/tree/master/meshroom/templates/product</p>
+<p>This tutorial assumes we're a vendor of a new product that didn't get a meshroom definition yet. So let's create it from scratch, or better, using one of the provided product capabilities templates, found under <a href="https://github.com/jeromefellus-sekoia/meshroom/tree/master/meshroom/templates/products">https://github.com/jeromefellus-sekoia/meshroom/tree/master/meshroom/templates/products</a></p>
 <pre><code class="language-bash">meshroom create product myedr --from edr
 </code></pre>
 <p>This created and scaffolded the <code>products/myedr</code> folder, with a draft definition.yaml and several other files. Of course, this is not enough to fully express myedr's full interop surface, but can be considered a good starting point:</p>
@@ -129,7 +129,7 @@ cd &lt;path&gt;
 <li>some typical capabilities of a standard EDR have been automatically added to <code>definition.yaml</code> (such as an events consumer, an alerts producer, an containment executor, <em>etc</em>).</li>
 <li>some basic hooks have been set in boilerplate files, ready for your own implementation of how a myedr tenant can be remotely provisioned and controlled.</li>
 </ul>
-<p>Since myedr is advertised as intelligence-driven, let's add three capabilities, by editing its <code>definition.yaml</code>:</p>
+<p>Since myedr is advertised as intelligence-driven, let's add three more capabilities, by editing its <code>definition.yaml</code>:</p>
 <pre><code class="language-yaml">consumes:
    threats:
       - format: stix
@@ -142,15 +142,15 @@ executes:
    search_threat:
       - {}
 </code></pre>
-<p>We thus added:</p>
+<p>We just added:</p>
 <ul>
-<li>a capability to consume the <code>threats</code> topic in <strong>push</strong> mode (that is, producers will actively call our myedr instance to provide original CTI data to it), following the STIX standard, well known for exchanging CTI artifacts</li>
-<li>a capability to produce <code>threats</code> in <strong>pull</strong> mode (that is, 3rd-parties will have to query an API GET endpoint to obtain CTI from our myedr instance), again as STIX bundles.</li>
-<li>a execution capability for <code>search_threat</code> action, which by default works in push mode (triggers must make an active call to this executor to perform the action). No particular format constraint is set for it, 3rd-parties will have to figure out the expected payload to get a successful search.</li>
+<li>a capability to <strong>consume</strong> the <code>threats</code> topic in <strong>push</strong> mode (that is, producers will actively call our myedr instance to provide original CTI data to it), following the well-known STIX standard.</li>
+<li>a capability to <strong>produce</strong> <code>threats</code> in <strong>pull</strong> mode (that is, 3rd-parties will have to query an API GET endpoint to obtain CTI from our myedr instance), again as STIX bundles.</li>
+<li>an <strong>execution</strong> capability for <code>search_threat</code> action, which by default works in <strong>push</strong> mode (triggers must make an active call to this executor to perform the action). No particular format constraint is set for it, 3rd-parties will have to figure out the expected payload to send to get a successful search.</li>
 </ul>
-<p>Let's assume the CTI production and consumption APIs are builtin in myedr, but the threat search isn't available via API out-of-the-box. However, imagine myedr exposes a plugin mechanism to add such new external surface. We can then implement a <code>@setup</code> hook that will leverage this mechanism to automate the setup of our search_threat capabilities on a live myedr instance:</p>
+<p>Let's assume that while the CTI production and consumption APIs are builtin in myedr, the threat search isn't available via API out-of-the-box. But myedr exposes a plugin mechanism to add such new external surface. We can then implement a <code>@setup</code> hook that will leverage this mechanism to automate the setup of our search_threat capabilities on a live myedr instance:</p>
 <ul>
-<li>Create a <code>search_threat.py</code> file containing</li>
+<li>Create the <code>products/myedr/search_threat.py</code> file containing</li>
 </ul>
 <pre><code class="language-py">from meshroom.decorators import setup
 from meshroom.model import Integration, Plug, Instance
@@ -172,34 +172,36 @@ def setup_threat_search_api_via_myedr_plugin(integration: Integration, plug: Plu
     default: whatever
 </code></pre>
 <p>This tells meshroom that any Instance of our myedr Product will require an API_KEY, stored securely, and an optional <code>some_setting</code> configuration parameter, prompted upon <code>meshroom add</code> when creating the said Instances.</p>
-<p>We may also require settings specific to a myedr's interop with a particular 3rd-party, say, Sekoia.io</p>
+<p>We may also require settings specific for myedr to interop with a particular 3rd-party, say, Sekoia.io</p>
 <p>Let's create a suitable Integration for that:</p>
 <pre><code class="language-bash">meshroom create integration myedr sekoia executor search_threat
 </code></pre>
 <p>This created a <code>search_threat_executor.yaml</code> manifest under <code>products/myedr/integrations/sekoia/</code> to hold the integration-specific settings, in the same way we did at Product level. We can then add a <code>settings:</code> section akin to the Product's one. Upon <code>meshroom plug some_sekoia_instance some_myedr_instance search_threat</code>, because myedr has defined specific settings for the executor end of this Plug, the user we'll be prompted for necessary values.</p>
-<p>This demonstrates the basic concepts of:</p>
+<p>We thus demonstrated the basic concepts of:</p>
 <ul>
 <li>hooks</li>
 <li>product and integration manifests with settings</li>
-<li>how settings and secrets get prompted at <code>meshroom add</code> and <code>meshroom plug</code>. Note that you can (re-)configure those settings using <code>meshroom configure</code>, <em>e.g.</em>, when you'll instanciate your mesh on a different information system</li>
+<li>how settings and secrets get prompted at <code>meshroom add</code> and <code>meshroom plug</code>. Note that you can (re-)configure those settings using <code>meshroom configure</code>, <em>e.g.</em>, when you'll instantiate your mesh on a different information system</li>
 </ul>
 <h3 id="3-create-a-mesh">3. Create a mesh</h3>
-<p>We'll create a basic mesh of 2 Instances:
-* a Sekoia.io instance called "mysekoia"
-* a myedr instance called "myedr" (same name as the corresponding product)</p>
+<p>We'll create a basic mesh of 2 Instances:</p>
+<ul>
+<li>a Sekoia.io instance called "mysekoia"</li>
+<li>a myedr instance called "myedr" (same name as the corresponding product)</li>
+</ul>
 <pre><code class="language-bash">meshroom add sekoia mysekoia
 meshroom add myedr
 </code></pre>
-<p>Each call will prompt you for the required secrets and settings. At this stage, nothing is sent yet to the actual tenants, meshroom only create the <code>instances/sekoia/mysekoia/...</code> files and write all secrets to <code>secrets.gpg</code>, ready for <code>meshroom up</code></p>
-<p>Now, let's <strong>plug</strong> both products, so that sekoia can consume myedr's events and myedr can execute sekoia's queries for threat searches.</p>
+<p>Each call will prompt you for the required secrets and settings. At this stage, nothing is submitted yet to the actual tenants, meshroom only created the <code>instances/sekoia/mysekoia/...</code> files and wrote all secrets to <code>secrets.gpg</code>, ready for calling <code>meshroom up</code></p>
+<p>Now, let's <strong>plug</strong> both products, so that mysekoia can consume myedr's events and myedr can execute mysekoia's queries for threat searches.</p>
 <pre><code class="language-bash">meshroom plug myedr mysekoia events
 meshroom plug mysekoia myedr search_threat
 </code></pre>
-<p>Oh no ! Meshroom CLI tells us that it can't find a integration for the trigger side of the second plug. Indeed, we've defined how to setup a myedr plugin to execute threat searches, but no Sekoia.io integration to actually trigger it from Sekoia.</p>
+<p>Oh no ! Meshroom CLI tells us that it can't find an integration for the trigger side of the second plug. Indeed, we've defined how to setup a myedr plugin to execute threat searches, but no Sekoia.io integration to actually trigger it from Sekoia.</p>
 <p>Let's fix that</p>
 <pre><code class="language-bash">meshroom create integration sekoia myedr search_threat trigger --mode=push
 </code></pre>
-<p>Contrarily to the previous call to <code>meshroom create integration</code>, this has created many files under the <code>products/sekoia/integrations/myedr/</code> folder, where we may recognize an almost complete Sekoia.io custom playbook action as one can find it on https://github.com/SEKOIA-IO/automation-library. This integration has been automatically scaffolded because Sekoia.io's vendor has defined a <code>@scaffold</code> hook on this kind of trigger. This hook generated all the boilerplate code required to build a custom playbook action that will trigger executions on 3rd-party APIs. All we need to do is to actually implement the TODOs left in the boilerplate. We won't cover this specific business here, but once you've coded your own logic, you can call again</p>
+<p>Contrarily to the previous call to <code>meshroom create integration</code>, this has created many files under the <code>products/sekoia/integrations/myedr/</code> folder, where we may recognize an almost complete Sekoia.io custom playbook action as one can find examples at <a href="https://github.com/SEKOIA-IO/automation-library">https://github.com/SEKOIA-IO/automation-library</a>. This integration has been automatically scaffolded because Sekoia.io's vendor has defined a <code>@scaffold</code> hook for this kind of trigger. This hook generated all the boilerplate code required to build a custom playbook action that will trigger executions on 3rd-party APIs. All we need to do is to actually implement the TODOs left in the boilerplate. We won't cover this specific business here, but once you've coded your own logic, you can call again</p>
 <pre><code class="language-bash">meshroom plug mysekoia myedr search_threat
 </code></pre>
 <p>which should now succeed !</p>
@@ -208,8 +210,8 @@ meshroom plug mysekoia myedr search_threat
 <p>Once you get a valid and satisfactory mesh of Instances and Plugs, you're ready to call</p>
 <pre><code class="language-bash">meshroom up
 </code></pre>
-<p>As in a docker compose stack, this command should be enough to setup and configure all your tenants, connect the require interops to make them communicate according to the defined mesh graph. Sometimes, <code>meshroom up</code> will prompt for additional settings and secret required for the runtime.</p>
-<p>To check everything works as expected, you can use two handy commands :</p>
+<p>As for a docker compose stack, this command should be enough to setup and configure all your tenants, and connect the required interops to make them communicate according to the mesh's graph. Sometimes, <code>meshroom up</code> will prompt for additional settings and secret required for the runtime.</p>
+<p>To check everything works as expected, we can use two handy commands :</p>
 <pre><code class="language-bash">meshroom produce myedr mysekoia events
 </code></pre>
 <p>and</p>
@@ -220,7 +222,7 @@ meshroom plug mysekoia myedr search_threat
 <p>Those commands are available thanks to the <code>@produce</code> and <code>@consume</code> hooks implemented in Sekoia's product definition. One is responsible for the programmatic emulation of data flowing to an integration, the other is reponsible for watching data as received by the instance to assess that the plug correctly route well-formed data to the destination product.</p>
 <p><code>@produce</code> hook may be defined on both the producer and consumer side of an integration: if the producer defines a <code>@produce</code> hook it takes precedence over the consumer's one, the latter's role being to <strong>emulate</strong> data flowing to it, instead of sending data from the real producer.</p>
 <p>Similarly, the <code>@consume</code> hook may be defined by both the producer and the consumer: if the consumer defines it, it takes precedence over the producer's one, thus reflecting what was really received by the destination product, otherwise we fallback to the producer's one that only prints what is flowing out of the producer without guaranteeing that data is actually received at consumer side.</p>
-<p>Here, we left the destination product without <code>@produce</code> and <code>@consume</code> hooks, so we emulate data coming from myedr (meshroom generates this flow instead really creating the data from myedr's output) but firmly assess this data is correctly received and parsed by mysekoia in input.</p>
+<p>Here, we left the destination product without <code>@produce</code> and <code>@consume</code> hooks, so we emulate data coming from myedr (meshroom generates this flow instead of really creating the data from myedr's output) but firmly assess this data is correctly received and parsed by mysekoia.</p>
 <h3 id="5-meshroom-down">5. Meshroom down</h3>
 <p>To make our mesh work, our instances have been automatically provisionned by <code>meshroom up</code> with plugins, configurations, <em>etc</em>. You may want to shutdown those capabilities and leave them in a clean state. Just call</p>
 <pre><code class="language-bash">meshroom down
@@ -228,17 +230,19 @@ meshroom plug mysekoia myedr search_threat
 <p>and your mesh setup should have been withdrawn from your products tenants.</p>
 <p>Again, this works via hooks: your myedr product should define a <code>@teardown</code> hook taking care of programmatically cleaning the plugs.</p>
 <h3 id="6-meshroom-publish">6. Meshroom publish</h3>
-<p>Finally, you may want to publicly release and share your mesh, and perhaps even contribute your developed integrations to the products official integrations catalog.</p>
-<p>The first stage is to simply <strong>commit</strong> your git-backed meshroom project. By pushing it to github, every products, integrations and mesh definitions are versioned and pullable by your colleagues. They will be able to instanciate the mesh on a different information system as long as they run <code>meshroom configure ...</code> to adapt the settings and secrets to their own environment. Of course, because secrets are stored in a GPG-encrypted file, you may also share it with colleagues using their GPG key, as you would do with a vault or secrets bundle sharing utility.</p>
-<p>The second stage is to promote your integration as public contributinos to the vendor's official catalog. For that matter, the vendor must have defined suitable <code>@publish</code> hooks for the topics of interest, so that the integration is turned into a valid package for uploading. In this tutorial, we know that Sekoia vendor has defined a <code>@publish</code> hook for triggers, that publish individual triggers as standalone sekoia.io playbook modules for use in their playbook automation workflows. Simply call</p>
+<p>Finally, you may want to publicly release and share your mesh, and perhaps even contribute your developed integrations to the vendor's official integrations catalog.</p>
+<p>The first stage is to simply <strong>commit</strong> your git-backed meshroom project. By pushing it to github, every products, integrations and mesh definitions are versioned and pullable by your colleagues. They will be able to instantiate the mesh on a different information system as long as they run <code>meshroom configure ...</code> to adapt the settings and secrets to their own environment. Of course, because secrets are stored in a GPG-encrypted file, you may also share it with colleagues using their GPG key, as you would do with a vault or secrets bundle sharing utility.</p>
+<p>The second stage is to promote your integration as public contributions to the vendor's official catalog. For that matter, the vendor must have defined suitable <code>@publish</code> hooks for the topics of interest, so that the integration is turned into a valid package for uploading. In this tutorial, we know that Sekoia vendor has defined a <code>@publish</code> hook for triggers, that publishes individual triggers as standalone sekoia.io playbook modules for use in their playbook automation workflows. Simply call</p>
 <pre><code class="language-bash">meshroom publish sekoia myedr search_threats
 </code></pre>
-<p>By the way, you can also trigger the trigger from command line via</p>
+<p>and you should get a Github PR to <a href="https://github.com/SEKOIA-IO/automation-library">https://github.com/SEKOIA-IO/automation-library</a> ready for review by Sekoia.io's integrators.</p>
+<p>By the way, you can also play the trigger from command line via</p>
 <pre><code class="language-bash">meshroom trigger mysekoia myedr search_threats -p &lt;param&gt;=&lt;value&gt; ...
 </code></pre>
-<p>to test the trigger/executor plugged relationship, as long as the vendor has defined a <code>@trigger</code> hook for the topic (or a generic one of course, which is the case for sekoia.io playbook actions).</p>
+<p>to test the trigger/executor relationship, as long as the vendor has defined a <code>@trigger</code> hook for the topic (or a generic one of course, which is the case for sekoia.io playbook actions).</p>
 <h3 id="7-participate-into-building-a-community-driven-global-capability-graph">7. Participate into building a community-driven global capability graph</h3>
-<p>Naturally, it would be sad if your integration work remains under your sole ownership. Sharing with friends and colleague is something, but contributing to the global capability graph hosted at github.com/oxa/TODO would make everyone so happy !</p>
+<p>Naturally, it would be sad if your integration work remains under your sole ownership.</p>
+<p>Sharing with friends and colleague is something, but contributing to the global capability graph hosted at github.com/oxa/TODO would make everyone so happy !</p>
 <p>Thank you in advance and happy meshrooming ! 👋</p>
               
             </div>
