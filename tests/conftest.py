@@ -4,6 +4,9 @@ import shutil
 from unittest.mock import patch
 import pytest
 
+patch("getpass.getpass", return_value="password")
+patch("getpass.unix_getpass", return_value="password")
+
 
 PROJECT_DIR = Path(__file__).parent / "data"
 
@@ -21,12 +24,3 @@ def skip_during_ci(func):
     if os.getenv("GITHUB_RUN_ID"):
         return pytest.mark.skip(reason="Skipped during CI, please run interactively")(func)
     return func
-
-
-@pytest.fixture(scope="session", autouse=True)
-def overrides():
-    with (
-        patch("getpass.getpass", return_value="password"),
-        patch("getpass.unix_getpass", return_value="password"),
-    ):
-        yield
