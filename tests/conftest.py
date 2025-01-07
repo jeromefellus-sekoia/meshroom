@@ -4,13 +4,14 @@ import shutil
 from unittest.mock import patch
 import pytest
 
-from meshroom.model import set_project_dir
 
 PROJECT_DIR = Path(__file__).parent / "data"
 
 
 @pytest.fixture(scope="function", autouse=True)
 def setup_project():
+    from meshroom.model import set_project_dir
+
     shutil.rmtree(PROJECT_DIR, ignore_errors=True)
     set_project_dir(PROJECT_DIR)
 
