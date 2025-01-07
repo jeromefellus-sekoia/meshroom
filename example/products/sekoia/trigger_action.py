@@ -2,9 +2,9 @@ from meshroom.decorators import trigger
 from meshroom.model import Integration, Instance
 
 
-@trigger("action")
+@trigger()
 def trigger_action(instance: Instance, integration: Integration, action: str | None = None, data: dict | None = None):
-    """Trigger a Sekoia.io playbook action, given its UUID or name"""
+    """A generic Trigger for Sekoia.io playbook action, given its UUID or name"""
     from .api import SekoiaAPI
 
     api = SekoiaAPI(

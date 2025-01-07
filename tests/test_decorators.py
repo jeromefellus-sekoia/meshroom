@@ -1,9 +1,9 @@
-from meshroom.decorators import SetupFunction, _setup_functions
+from meshroom.decorators import Hook, all_hooks
 from meshroom.model import Integration, list_integrations, set_project_dir
 
 
 def test_setup_decorator():
-    _setup_functions.clear()  # Ensure the setup functions cache is flushed
+    all_hooks.clear()  # Ensure the hooks cache is flushed
 
     set_project_dir("tests/fixtures/project1")
     assert set(list_integrations("myproduct")) == {
@@ -13,7 +13,7 @@ def test_setup_decorator():
 
     i = list_integrations("myproduct", topic="events")[0]
     assert i.get_setup_functions() == [
-        SetupFunction(
+        Hook(
             product="myproduct",
             target_product=None,
             role="consumer",
@@ -28,13 +28,13 @@ def test_setup_decorator():
         ),
     ]
 
-    assert set(SetupFunction.get_all()) == {
-        SetupFunction(
+    assert set(Hook.get_all()) == {
+        Hook(
             product="myproduct",
             target_product=None,
             role="consumer",
             topic="stuff",
-            func=[x.func for x in SetupFunction.get_all() if x.topic == "stuff"][0],
+            func=[x.func for x in Hook.get_all() if x.topic == "stuff"][0],
             mode="pull",
             format=None,
             keep_when_overloaded=False,
@@ -42,12 +42,12 @@ def test_setup_decorator():
             title="Make magic happen",
             type="setup",
         ),
-        SetupFunction(
+        Hook(
             product="myproduct",
             target_product=None,
             role="consumer",
             topic="events",
-            func=[x.func for x in SetupFunction.get_all() if x.topic == "events"][0],
+            func=[x.func for x in Hook.get_all() if x.topic == "events"][0],
             mode=None,
             format="ecs",
             keep_when_overloaded=False,

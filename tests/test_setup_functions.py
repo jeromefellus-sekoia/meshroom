@@ -1,10 +1,10 @@
 import pytest
-from meshroom.decorators import SetupFunction
+from meshroom.decorators import Hook
 from meshroom.model import Integration
 
 
 def test_generic_setup_function():
-    f = SetupFunction(
+    f = Hook(
         product="myproduct",
         target_product=None,
         role="consumer",
@@ -28,7 +28,7 @@ def test_generic_setup_function():
 
 
 def test_specifig_setup_function():
-    f = SetupFunction(
+    f = Hook(
         product="myproduct",
         target_product="otherproduct",
         role="consumer",
@@ -53,7 +53,7 @@ def test_specifig_setup_function():
 
 
 def test_specifig_setup_function_with_format():
-    f = SetupFunction(
+    f = Hook(
         product="myproduct",
         target_product="otherproduct",
         role="consumer",

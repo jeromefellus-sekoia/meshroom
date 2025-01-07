@@ -5,7 +5,7 @@ import re
 import ssl
 import sys
 from time import sleep, time
-from uuid import uuid4
+from uuid import UUID, uuid4
 from requests import HTTPError, Session
 import requests
 import websocket
@@ -267,7 +267,8 @@ class SekoiaAPI(Session):
                         errors.append(f"{s['error']} {s.get('output', '')}")
                 step_status[s["name"]] = s["status"]
             if status.get("status") == "FAILED":
-                raise RuntimeError(f"Failed to pull the custom integration: \n{'\n'.join(errors)}")
+                errors = "\n".join(errors)
+                raise RuntimeError(f"Failed to pull the custom integration: \n{errors}")
             if status.get("status") in ("SUCCESS", "FINISHED"):
                 break
 
@@ -332,11 +333,24 @@ class SekoiaAPI(Session):
         ).text
 
     def get_action_uuid(self, action: str):
-        """Return a playbook action's UUID given its name and optionally its module UUID"""
+        """Return a playbook action's UUID given its name or UUID"""
         try:
-            return self.get("/v1/symphony/actions", json={"match[name]": action}).json()["items"][0]["uuid"]
-        except IndexError:
-            return None
+            return str(UUID(action))
+        except Exception:
+            try:
+                return self.get("/v1/symphony/actions", json={"match[name]": action}).json()["items"][0]["uuid"]
+            except IndexError:
+                return None
+
+    def get_playbook_uuid(self, playbook: str):
+        """Return a playbook's UUID given its name or UUID"""
+        try:
+            return str(UUID(playbook))
+        except Exception:
+            try:
+                return self.get("/v1/symphony/playbooks", json={"match[name]": playbook}).json()["items"][0]["uuid"]
+            except IndexError:
+                return None
 
     def get_task(self, task_id: str):
         """Return a task's status given its UUID"""
@@ -379,6 +393,40 @@ class SekoiaAPI(Session):
             raise ValueError(t["error"])
 
         return self.get(f"v1/notebooks/queries/runs/{uuid}").json()
+
+    def trigger_playbook(self, playbook_uuid: str):
+        """Trigger a playbook"""
+        started_at = datetime.utcnow()
+        playbook = self.get(f"/v1/symphony/playbooks/{playbook_uuid}").json()
+        print(f"Run playbook {playbook['name']} ({playbook_uuid})")
+        trigger_configuration_uuid = playbook["trigger_configurations"][0]["uuid"]
+
+        self.post(
+            f"/v1/symphony/trigger-configurations/{trigger_configuration_uuid}",
+            json={
+                "event": {
+                    "alert_uuid": str(uuid4()),
+                    "playbook_uuid": playbook_uuid,
+                }
+            },
+        ).json()
+
+        while True:
+            run = self.get_playbook_run(playbook_uuid, started_at)
+            nb_nodes = len(run["node_runs"])
+            nb_finished = len([n for n in run["node_runs"] if n["status"] in ("finished", "error")])
+            print(f"{nb_finished}/{nb_nodes} nodes finished", flush=True)
+            if nb_finished >= nb_nodes:
+                break
+            sleep(1)
+
+        return {n: self.get(f"/v1/symphony/node-runs/{node_run['uuid']}").json() for n, node_run in run["node_runs"].items()}
+
+    def get_playbook_run(self, playbook_uuid: str, started_after: datetime):
+        runs = self.get("/v1/symphony/playbook-runs", params={"match[playbook_uuid]": playbook_uuid}).json()
+        for run in runs["items"]:
+            if datetime(run["started_at"]) > started_after:
+                return self.get(f"/v1/symphony/playbook-runs/{run['uuid']}").json()
 
 
 class LiveApi:

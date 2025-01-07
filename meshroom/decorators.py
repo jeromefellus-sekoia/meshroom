@@ -4,23 +4,32 @@ from typing import Callable, Literal
 from meshroom.ast import adapt_kwargs_to_signature
 from meshroom.model import Integration, Model, Product, Role, Mode, get_product, get_project_dir
 
-SetupFunctionType = Literal["setup", "teardown", "scaffold", "watch", "produce", "trigger", "execute", "publish"]
-_setup_functions: set["SetupFunction"] = set()
-SetupFunctionOrder = Literal["first", "last"] | int
+HookType = Literal[
+    "setup",  # @setup hooks are executed upon `meshroom up`
+    "teardown",  # @teardown hooks are executed upon `meshroom down`
+    "scaffold",  # @scaffold hooks are executed upon `meshroom create integration`
+    "watch",  # @watch hooks are executed upon `meshroom watch`
+    "produce",  # @produce hooks are executed upon `meshroom produce`
+    "trigger",  # @trigger hooks are executed upon `meshroom trigger`
+    "execute",  # @execute hooks are executed upon `meshroom execute`
+    "publish",  # @publish hooks are executed upon `meshroom publish`
+]
+all_hooks: set["Hook"] = set()
+HookOrder = Literal["first", "last"] | int
 
 
-class SetupFunction(Model):
+class Hook(Model):
     product: str
     target_product: str | None
     role: Role
-    topic: str
+    topic: str | None = None
     func: Callable
     mode: Mode | None = None
     format: str | None = None
     keep_when_overloaded: bool = False
-    order: SetupFunctionOrder | None = None
+    order: HookOrder | None = None
     title: str
-    type: SetupFunctionType = "setup"
+    type: HookType = "setup"
 
     def match(self, o: Integration | Product):
         if isinstance(o, Integration):
@@ -28,14 +37,14 @@ class SetupFunction(Model):
                 self.product == o.product
                 and self.target_product in (None, o.target_product)
                 and self.role == o.role
-                and self.topic == o.topic
+                and self.topic in (None, o.topic)
                 and self.mode in (None, o.mode)
                 and self.format in (None, o.format)
             )
         else:
             return self.product == o.name and self.target_product is None
 
-    def __lt__(self, other: "SetupFunction"):
+    def __lt__(self, other: "Hook"):
         if self.order == "first":
             return True
         elif self.order == "last":
@@ -51,17 +60,17 @@ class SetupFunction(Model):
         return self.order < other.order
 
     def get_title(self):
-        """Return this setup step's title, falling back to the setup function's name if not set"""
+        """Return this setup step's title, falling back to the Hook's name if not set"""
         return self.title or self.func.__name__
 
     @staticmethod
     def clear():
-        _setup_functions.clear()
+        all_hooks.clear()
 
     def __hash__(self):
         return hash((self.product, self.target_product, self.role, self.mode, self.topic, self.title, self.type))
 
-    def __eq__(self: "SetupFunction", other: "SetupFunction"):
+    def __eq__(self: "Hook", other: "Hook"):
         return (
             self.product == other.product
             and self.target_product == other.target_product
@@ -77,17 +86,17 @@ class SetupFunction(Model):
         product: str,
         target_product: str | None,
         role: Role,
-        topic: str,
+        topic: str | None,
         mode: Mode,
         func: Callable,
         keep_when_overloaded: bool,
         order: Literal["first", "last"] | None = None,
         title: str | None = None,
-        type: SetupFunctionType = "setup",
+        type: HookType = "setup",
         format: str | None = None,
     ):
-        _setup_functions.add(
-            sf := SetupFunction(
+        all_hooks.add(
+            sf := Hook(
                 product=product,
                 target_product=target_product,
                 role=role,
@@ -104,11 +113,11 @@ class SetupFunction(Model):
         return sf
 
     @staticmethod
-    def get_all(type: SetupFunctionType | None = None):
-        return [sf for sf in _setup_functions if type is None or sf.type == type]
+    def get_all(type: HookType | None = None):
+        return [sf for sf in all_hooks if type is None or sf.type == type]
 
     def call(self, **kwargs):
-        """Call the setup function with the given kwargs, adapted to its signature"""
+        """Call the Hook with the given kwargs, adapted to its signature"""
         return self.func(**adapt_kwargs_to_signature(self.func, **kwargs))
 
 
@@ -116,15 +125,15 @@ class SetupFunction(Model):
 
 
 def setup_consumer(
-    topic: str,
+    topic: str | None = None,
     title: str | None = None,
     mode: Mode | None = None,
     format: str | None = None,
     keep_when_overloaded: bool = False,
-    order: SetupFunctionOrder | None = None,
+    order: HookOrder | None = None,
 ):
     """
-    Decorator to declare a function as a generic consumer setup step for the product where it resides
+    Decorator to declare a function as a generic consumer setup hook for the product where it resides
     If :title is not set, the function's docstring or name will be used
     """
 
@@ -132,22 +141,22 @@ def setup_consumer(
         func_file = Path(inspect.getfile(func))
         if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
             raise ValueError("setup_consumer() decorator is allowed only in a product's setup.py")
-        SetupFunction.add(product.name, None, "consumer", topic, mode, func, keep_when_overloaded, order, title, "setup", format)
+        Hook.add(product.name, None, "consumer", topic, mode, func, keep_when_overloaded, order, title, "setup", format)
         return func
 
     return decorator
 
 
 def teardown_consumer(
-    topic: str,
+    topic: str | None = None,
     title: str | None = None,
     mode: Mode | None = None,
     format: str | None = None,
     keep_when_overloaded: bool = False,
-    order: SetupFunctionOrder | None = None,
+    order: HookOrder | None = None,
 ):
     """
-    Decorator to declare a function as a generic consumer setup step for the product where it resides
+    Decorator to declare a function as a generic consumer setup hook for the product where it resides
     If :title is not set, the function's docstring or name will be used
     """
 
@@ -155,22 +164,22 @@ def teardown_consumer(
         func_file = Path(inspect.getfile(func))
         if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
             raise ValueError("teardown_consumer() decorator is allowed only in a product's setup.py")
-        SetupFunction.add(product.name, None, "consumer", topic, mode, func, keep_when_overloaded, order, title, "teardown", format)
+        Hook.add(product.name, None, "consumer", topic, mode, func, keep_when_overloaded, order, title, "teardown", format)
         return func
 
     return decorator
 
 
 def setup_executor(
-    topic: str,
+    topic: str | None = None,
     title: str | None = None,
     mode: Mode | None = None,
     format: str | None = None,
     keep_when_overloaded: bool = False,
-    order: SetupFunctionOrder | None = None,
+    order: HookOrder | None = None,
 ):
     """
-    Decorator to declare a function as a generic executor setup step for the product where it resides
+    Decorator to declare a function as a generic executor setup hook for the product where it resides
     If :title is not set, the function's docstring or name will be used
     """
 
@@ -178,22 +187,22 @@ def setup_executor(
         func_file = Path(inspect.getfile(func))
         if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
             raise ValueError("setup_executor() decorator is allowed only in a product's setup.py")
-        SetupFunction.add(product.name, None, "executor", topic, mode, func, keep_when_overloaded, order, title, "setup", format)
+        Hook.add(product.name, None, "executor", topic, mode, func, keep_when_overloaded, order, title, "setup", format)
         return func
 
     return decorator
 
 
 def teardown_executor(
-    topic: str,
+    topic: str | None = None,
     title: str | None = None,
     mode: Mode | None = None,
     format: str | None = None,
     keep_when_overloaded: bool = False,
-    order: SetupFunctionOrder | None = None,
+    order: HookOrder | None = None,
 ):
     """
-    Decorator to declare a function as a generic executor setup step for the product where it resides
+    Decorator to declare a function as a generic executor setup hook for the product where it resides
     If :title is not set, the function's docstring or name will be used
     """
 
@@ -201,22 +210,22 @@ def teardown_executor(
         func_file = Path(inspect.getfile(func))
         if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
             raise ValueError("teardown_executor() decorator is allowed only in a product's setup.py")
-        SetupFunction.add(product.name, None, "executor", topic, mode, func, keep_when_overloaded, order, title, "teardown", format)
+        Hook.add(product.name, None, "executor", topic, mode, func, keep_when_overloaded, order, title, "teardown", format)
         return func
 
     return decorator
 
 
 def setup_producer(
-    topic: str,
+    topic: str | None = None,
     title: str | None = None,
     mode: Mode | None = None,
     format: str | None = None,
     keep_when_overloaded: bool = False,
-    order: SetupFunctionOrder | None = None,
+    order: HookOrder | None = None,
 ):
     """
-    Decorator to declare a function as a generic producer setup step for the product where it resides
+    Decorator to declare a function as a generic producer setup hook for the product where it resides
     If :title is not set, the function's docstring or name will be used
     """
 
@@ -225,22 +234,22 @@ def setup_producer(
         if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
             raise ValueError("setup_producer() decorator is allowed only in a product's setup.py")
 
-        SetupFunction.add(product.name, None, "producer", topic, mode, func, keep_when_overloaded, order, title, "setup", format)
+        Hook.add(product.name, None, "producer", topic, mode, func, keep_when_overloaded, order, title, "setup", format)
         return func
 
     return decorator
 
 
 def teardown_producer(
-    topic: str,
+    topic: str | None = None,
     title: str | None = None,
     mode: Mode | None = None,
     format: str | None = None,
     keep_when_overloaded: bool = False,
-    order: SetupFunctionOrder | None = None,
+    order: HookOrder | None = None,
 ):
     """
-    Decorator to declare a function as a generic producer setup step for the product where it resides
+    Decorator to declare a function as a generic producer setup hook for the product where it resides
     If :title is not set, the function's docstring or name will be used
     """
 
@@ -249,22 +258,22 @@ def teardown_producer(
         if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
             raise ValueError("teardown_producer() decorator is allowed only in a product's setup.py")
 
-        SetupFunction.add(product.name, None, "producer", topic, mode, func, keep_when_overloaded, order, title, "teardown", format)
+        Hook.add(product.name, None, "producer", topic, mode, func, keep_when_overloaded, order, title, "teardown", format)
         return func
 
     return decorator
 
 
 def setup_trigger(
-    topic: str,
+    topic: str | None = None,
     title: str | None = None,
     mode: Mode | None = None,
     format: str | None = None,
     keep_when_overloaded: bool = False,
-    order: SetupFunctionOrder | None = None,
+    order: HookOrder | None = None,
 ):
     """
-    Decorator to declare a function as a generic trigger setup step for the product where it resides
+    Decorator to declare a function as a generic trigger setup hook for the product where it resides
     If :title is not set, the function's docstring or name will be used
     """
 
@@ -273,22 +282,22 @@ def setup_trigger(
         if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
             raise ValueError("setup_trigger() decorator is allowed only in a product's setup.py")
 
-        SetupFunction.add(product.name, None, "trigger", topic, mode, func, keep_when_overloaded, order, title, "setup", format)
+        Hook.add(product.name, None, "trigger", topic, mode, func, keep_when_overloaded, order, title, "setup", format)
         return func
 
     return decorator
 
 
 def teardown_trigger(
-    topic: str,
+    topic: str | None = None,
     title: str | None = None,
     mode: Mode | None = None,
     format: str | None = None,
     keep_when_overloaded: bool = False,
-    order: SetupFunctionOrder | None = None,
+    order: HookOrder | None = None,
 ):
     """
-    Decorator to declare a function as a generic trigger setup step for the product where it resides
+    Decorator to declare a function as a generic trigger setup hook for the product where it resides
     If :title is not set, the function's docstring or name will be used
     """
 
@@ -297,7 +306,7 @@ def teardown_trigger(
         if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
             raise ValueError("teardown_trigger() decorator is allowed only in a product's setup.py")
 
-        SetupFunction.add(product.name, None, "trigger", topic, mode, func, keep_when_overloaded, order, title, "teardown", format)
+        Hook.add(product.name, None, "trigger", topic, mode, func, keep_when_overloaded, order, title, "teardown", format)
         return func
 
     return decorator
@@ -314,13 +323,13 @@ def watch(topic: str, mode: Mode | None = None, format: str | None = None):
             i = Integration.load(func_file.with_suffix(""))
             if i.role not in "consumer":
                 raise ValueError("watch() decorator can only be used in a consumer Integration")
-            SetupFunction.add(i.product, i.target_product, i.role, i.topic, i.mode, func, True, None, None, "watch", format)
+            Hook.add(i.product, i.target_product, i.role, i.topic, i.mode, func, True, None, None, "watch", format)
             return func
         except ValueError:
             if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
                 raise ValueError("watch() decorator can't be used outside of a Product's directory")
 
-            SetupFunction.add(product.name, None, "consumer", topic, mode, func, True, None, None, "watch", format)
+            Hook.add(product.name, None, "consumer", topic, mode, func, True, None, None, "watch", format)
             return func
 
     return decorator
@@ -337,19 +346,19 @@ def produce(topic: str, mode: Mode | None = None, format: str | None = None):
             i = Integration.load(func_file.with_suffix(""))
             if i.role not in "producer":
                 raise ValueError("produce() decorator can only be used in a consumer Integration")
-            SetupFunction.add(i.product, i.target_product, i.role, i.topic, i.mode, func, True, None, None, "produce", format)
+            Hook.add(i.product, i.target_product, i.role, i.topic, i.mode, func, True, None, None, "produce", format)
             return func
         except ValueError:
             if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
                 raise ValueError("produce() decorator can't be used outside of a Product's directory")
 
-            SetupFunction.add(product.name, None, "consumer", topic, mode, func, True, None, None, "produce", format)
+            Hook.add(product.name, None, "consumer", topic, mode, func, True, None, None, "produce", format)
             return func
 
     return decorator
 
 
-def trigger(topic: str, mode: Mode | None = None, format: str | None = None):
+def trigger(topic: str | None = None, mode: Mode | None = None, format: str | None = None):
     """
     Decorator to declare a function as triggering the given trigger topic by the product where it resides
     """
@@ -360,19 +369,19 @@ def trigger(topic: str, mode: Mode | None = None, format: str | None = None):
             i = Integration.load(func_file.with_suffix(""))
             if i.role not in "trigger":
                 raise ValueError("trigger() decorator can only be used in a trigger Integration")
-            SetupFunction.add(i.product, i.target_product, i.role, i.topic, i.mode, func, True, None, None, "trigger", format)
+            Hook.add(i.product, i.target_product, i.role, i.topic, i.mode, func, True, None, None, "trigger", format)
             return func
         except ValueError:
             if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
                 raise ValueError("trigger() decorator can't be used outside of a Product's directory")
 
-            SetupFunction.add(product.name, None, "trigger", topic, mode, func, True, None, None, "trigger", format)
+            Hook.add(product.name, None, "trigger", topic, mode, func, True, None, None, "trigger", format)
             return func
 
     return decorator
 
 
-def execute(topic: str, mode: Mode | None = None, format: str | None = None):
+def execute(topic: str | None = None, mode: Mode | None = None, format: str | None = None):
     """
     Decorator to declare a function as remotely executing the given executor exposed by the product where it resides
     """
@@ -383,19 +392,19 @@ def execute(topic: str, mode: Mode | None = None, format: str | None = None):
             i = Integration.load(func_file.with_suffix(""))
             if i.role not in "trigger":
                 raise ValueError("execute() decorator can only be used in an executor Integration")
-            SetupFunction.add(i.product, i.target_product, i.role, i.topic, i.mode, func, True, None, None, "execute", format)
+            Hook.add(i.product, i.target_product, i.role, i.topic, i.mode, func, True, None, None, "execute", format)
             return func
         except ValueError:
             if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
                 raise ValueError("execute() decorator can't be used outside of a Product's directory")
 
-            SetupFunction.add(product.name, None, "executor", topic, mode, func, True, None, None, "execute", format)
+            Hook.add(product.name, None, "executor", topic, mode, func, True, None, None, "execute", format)
             return func
 
     return decorator
 
 
-def publish(topic: str, role: Role | None = None, mode: Mode | None = None, format: str | None = None):
+def publish(topic: str | None = None, role: Role | None = None, mode: Mode | None = None, format: str | None = None):
     """
     Decorator to declare a function as publishing an integration exposed by the product where it resides
     """
@@ -404,23 +413,23 @@ def publish(topic: str, role: Role | None = None, mode: Mode | None = None, form
         func_file = Path(inspect.getfile(func))
         try:
             i = Integration.load(func_file.with_suffix(""))
-            SetupFunction.add(i.product, i.target_product, i.role, i.topic, i.mode, func, True, None, None, "publish", format)
+            Hook.add(i.product, i.target_product, i.role, i.topic, i.mode, func, True, None, None, "publish", format)
             return func
         except ValueError:
             if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
                 raise ValueError("publish() decorator can't be used outside of a Product's directory")
 
-            SetupFunction.add(product.name, None, role, topic, mode, func, True, None, None, "publish", format)
+            Hook.add(product.name, None, role, topic, mode, func, True, None, None, "publish", format)
             return func
 
     return decorator
 
 
 def scaffold_consumer(
-    topic: str,
+    topic: str | None = None,
     mode: Mode | None = None,
     format: str | None = None,
-    order: SetupFunctionOrder | None = None,
+    order: HookOrder | None = None,
 ):
     """
     Decorator to declare a function as a code generator for a new consumer integration for the product where it resides
@@ -431,17 +440,17 @@ def scaffold_consumer(
         if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
             raise ValueError("scaffold_consumer() decorator is allowed only in a product's python modules")
 
-        SetupFunction.add(product.name, None, "consumer", topic, mode, func, True, order, None, "scaffold", format)
+        Hook.add(product.name, None, "consumer", topic, mode, func, True, order, None, "scaffold", format)
         return func
 
     return decorator
 
 
 def scaffold_executor(
-    topic: str,
+    topic: str | None = None,
     mode: Mode | None = None,
     format: str | None = None,
-    order: SetupFunctionOrder | None = None,
+    order: HookOrder | None = None,
 ):
     """
     Decorator to declare a function as a code generator for a new executor integration for the product where it resides
@@ -452,17 +461,17 @@ def scaffold_executor(
         if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
             raise ValueError("scaffold_executor() decorator is allowed only in a product's scaffold.py")
 
-        SetupFunction.add(product.name, None, "executor", topic, mode, func, True, order, None, "scaffold", format)
+        Hook.add(product.name, None, "executor", topic, mode, func, True, order, None, "scaffold", format)
         return func
 
     return decorator
 
 
 def scaffold_producer(
-    topic: str,
+    topic: str | None = None,
     mode: Mode | None = None,
     format: str | None = None,
-    order: SetupFunctionOrder | None = None,
+    order: HookOrder | None = None,
 ):
     """
     Decorator to declare a function as a code generator for a new producer integration for the product where it resides
@@ -473,17 +482,17 @@ def scaffold_producer(
         if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
             raise ValueError("scaffold_producer() decorator is allowed only in a product's scaffold.py")
 
-        SetupFunction.add(product.name, None, "producer", topic, mode, func, True, order, None, "scaffold", format)
+        Hook.add(product.name, None, "producer", topic, mode, func, True, order, None, "scaffold", format)
         return func
 
     return decorator
 
 
 def scaffold_trigger(
-    topic: str,
+    topic: str | None = None,
     mode: Mode | None = None,
     format: str | None = None,
-    order: SetupFunctionOrder | None = None,
+    order: HookOrder | None = None,
 ):
     """
     Decorator to declare a function as a code generator for a new trigger integration for the product where it resides
@@ -494,7 +503,7 @@ def scaffold_trigger(
         if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
             raise ValueError("scaffold_trigger() decorator is allowed only in a product's scaffold.py")
 
-        SetupFunction.add(product.name, None, "trigger", topic, mode, func, True, order, None, "scaffold", format)
+        Hook.add(product.name, None, "trigger", topic, mode, func, True, order, None, "scaffold", format)
         return func
 
     return decorator
@@ -506,7 +515,7 @@ def scaffold_trigger(
 def setup(
     title: str | None = None,
     format: str | None = None,
-    order: SetupFunctionOrder | None = None,
+    order: HookOrder | None = None,
 ):
     """
     Decorator to declare a function as a setup step for the integration where it resides
@@ -519,7 +528,7 @@ def setup(
         if not i:
             raise ValueError("setup() decorator can't be used outside of an Integration")
 
-        SetupFunction.add(i.product, i.target_product, i.role, i.topic, i.mode, func, True, order, title, "setup", format)
+        Hook.add(i.product, i.target_product, i.role, i.topic, i.mode, func, True, order, title, "setup", format)
         return func
 
     return decorator
@@ -527,7 +536,7 @@ def setup(
 
 def teardown(
     title: str | None = None,
-    order: SetupFunctionOrder | None = None,
+    order: HookOrder | None = None,
 ):
     """
     Decorator to declare a function as a setup step for the integration where it resides
@@ -540,7 +549,7 @@ def teardown(
         if not i:
             raise ValueError("teardown() decorator can't be used outside of an Integration")
 
-        SetupFunction.add(i.product, i.target_product, i.role, i.topic, i.mode, func, True, order, title, "teardown")
+        Hook.add(i.product, i.target_product, i.role, i.topic, i.mode, func, True, order, title, "teardown")
         return func
 
     return decorator

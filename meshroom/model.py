@@ -248,7 +248,7 @@ class Product(Model):
         - in definition.yaml's "consumes","produces","triggers", and "executes" sections
         - via meshroom.decorators.setup_xxx(...) decorators in setup.py
         """
-        from meshroom.decorators import SetupFunction
+        from meshroom.decorators import Hook
 
         out: set[Capability] = set()
 
@@ -265,9 +265,9 @@ class Product(Model):
                     if (not topic or topic == t) and (not format or format == c.format or c.format is None) and (not mode or mode == c.mode):
                         out.add(Capability(topic=t, role=r, mode=c.mode, format=c.format))
 
-        # Collect capabilities declared in decorated setup functions
+        # Collect capabilities declared in decorated hooks
         self.import_python_modules()
-        for sf in SetupFunction.get_all("setup"):
+        for sf in Hook.get_all("setup"):
             if sf.product == self.name and sf.target_product is None:
                 if (
                     (role is None or sf.role == role)
@@ -275,7 +275,7 @@ class Product(Model):
                     and (format is None or sf.format == format or sf.format is None)
                     and (mode is None or sf.mode == mode)
                 ):
-                    # If the setup function is mode-agnostic, consider that the product's capability supports both push and pull
+                    # If the hook is mode-agnostic, consider that the product's capability supports both push and pull
                     if sf.mode is None:
                         for m in ("push", "pull"):
                             out.add(Capability(topic=sf.topic, role=sf.role, mode=m, format=sf.format))
@@ -314,24 +314,35 @@ class Product(Model):
 
     def import_python_modules(self):
         """
-        Import the product's python modules to collect all setup functions
+        Import the product's python modules to collect all hooks
         """
         for module in self.path.glob("*.py"):
             import_module(module, package_dir=self.path)
 
-    def get_setup_functions(self, type: Literal["setup", "teardown", "scaffold", "watch"] | None = None):
+    def get_hooks(
+        self,
+        type: Literal["setup", "teardown", "scaffold", "watch"] | None = None,
+        topic: str | None = None,
+        mode: Mode | None = None,
+        role: Role | None = None,
+        format: str | None = None,
+    ):
         """
-        List all the setup functions defined for this product, declared either:
+        List all the Hooks defined for this product, declared either:
         - via meshroom.decorators.setup_consumer(...) or meshroom.decorators.setup_producer(...) decorators
         - via meshroom.decorators.watch(...) decorator
-        Matching setup functions are those whose target_product is None
+        Matching hooks are those whose target_product is None
         """
-        from meshroom.decorators import SetupFunction
+        from meshroom.decorators import Hook
 
         self.import_python_modules()
 
-        # Sort the setup functions by their declared order
-        return sorted(sf for sf in SetupFunction.get_all(type) if sf.match(self) and sf.target_product is None)
+        # Sort the Hooks by their declared order
+        return sorted(
+            sf
+            for sf in Hook.get_all(type)
+            if sf.match(self) and sf.target_product is None and topic in (None, sf.topic) and mode in (None, sf.mode) and role in (None, sf.role) and format in (None, sf.format)
+        )
 
 
 class ProductSetting(Model):
@@ -587,17 +598,17 @@ class Integration(Model):
 
     def get_setup_functions(self, type: Literal["setup", "teardown", "scaffold", "watch"] | None = None):
         """
-        List all the setup functions defined for this integration, declared either:
+        List all the hooks defined for this integration, declared either:
         - via meshroom.decorators.setup(...) decorator at integration-level
         - via meshroom.decorators.scaffold(...) decorator at integration-level, providing integration scaffolding steps
         - via meshroom.decorators.setup_consumer(...) or meshroom.decorators.setup_producer(...) decorators at product-level
         """
-        from meshroom.decorators import SetupFunction
+        from meshroom.decorators import Hook
 
         self.import_python_modules()
 
-        # Sort the setup functions by their declared order
-        funcs = sorted(sf for sf in SetupFunction.get_all(type) if sf.match(self))
+        # Sort the hooks by their declared order
+        funcs = sorted(sf for sf in Hook.get_all(type) if sf.match(self))
 
         # If the integration overloads the setup hooks, keep only the overloaded ones and the ones marked to be kept
         if any(f.target_product for f in funcs):
@@ -607,7 +618,7 @@ class Integration(Model):
 
     def import_python_modules(self):
         """
-        Import the integration's python module to collect all setup functions
+        Import the integration's python module to collect all hooks
         Also ensure the product's python modules are imported too
         """
         import_module(self.path.with_suffix(".py"), package_dir=self.path.parent.parent.parent)
@@ -692,17 +703,32 @@ class Instance(Model):
         return path_in_project(PROJECT_DIR / "instances" / self.product / self.name)
 
     def watch(self, topic: str, role: Role | None = None, mode: Mode | None = None):
-        """Watch the instance for data flowing through a given topic"""
+        """
+        Watch the instance for data flowing through a given topic,
+        using the most specific @watch hook found
+        """
         try:
-            w = self.get_product().get_setup_functions("watch")[0]
+            w = sorted(
+                self.get_product().get_hooks("watch", topic=topic, role=role, mode=mode),
+                key=lambda x: (x.topic is None, x.role is None, x.mode is None),
+                reverse=True,
+            )[0]
+
         except IndexError:
             raise ValueError(f"🚫 No @watch function found for {self}")
         yield from w.call(instance=self, topic=topic, role=role, mode=mode)
 
-    def produce(self, topic, data: str | bytes, mode: Mode | None = None):
-        """Produce data flowing through a given topic to this instance"""
+    def produce(self, topic: str, data: str | bytes, mode: Mode | None = None):
+        """
+        Produce data flowing through a given topic to this instance
+        using the most specific @produce hook found
+        """
         try:
-            s = self.get_product().get_setup_functions("produce")[0]
+            s = sorted(
+                self.get_product().get_hooks("produce", topic=topic, mode=mode),
+                key=lambda x: (x.topic is None, x.role is None, x.mode is None),
+                reverse=True,
+            )[0]
         except IndexError:
             raise ValueError(f"🚫 No @produce function found for {self}")
         return s.call(
@@ -713,28 +739,42 @@ class Instance(Model):
             data=data,
         )
 
-    def trigger(self, topic, data: dict | None = None, mode: Mode | None = None):
-        """Emulate a trigger exposed by this instance"""
+    def trigger(self, topic: str, data: dict | None = None, mode: Mode | None = None):
+        """
+        Emulate a trigger exposed by this instance
+        using the most specific @trigger hook found
+        """
         try:
-            s = self.get_product().get_setup_functions("trigger")[0]
+            s = sorted(
+                self.get_product().get_hooks("trigger", topic=topic, mode=mode),
+                key=lambda x: (x.topic is None, x.role is None, x.mode is None),
+                reverse=True,
+            )[0]
         except IndexError:
             raise ValueError(f"🚫 No @trigger function found for {self}")
         return s.call(
-            plug=self,
+            plug=None,
             instance=self,
             topic=topic,
             mode=mode,
             data=data,
         )
 
-    def execute(self, topic, data: dict | None = None, mode: Mode | None = None):
-        """Remotely trigger an executor exposed by this instance"""
+    def execute(self, topic: str, data: dict | None = None, mode: Mode | None = None):
+        """
+        Remotely trigger an executor exposed by this instance
+        using the most specific @execute hook found
+        """
         try:
-            s = self.get_product().get_setup_functions("execute")[0]
+            s = sorted(
+                self.get_product().get_hooks("execute", topic=topic, mode=mode),
+                key=lambda x: (x.topic is None, x.role is None, x.mode is None),
+                reverse=True,
+            )[0]
         except IndexError:
             raise ValueError(f"🚫 No @execute function found for {self}")
         return s.call(
-            plug=self,
+            plug=None,
             instance=self,
             topic=topic,
             mode=mode,
