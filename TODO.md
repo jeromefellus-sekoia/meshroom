@@ -1,22 +1,20 @@
 # TODO
 
-* [ ] Product categories from dbi's work
-* [ ] Sekoia integrations product category from dbi's work
-* [ ] Execute trigger from CLI => meshroom trigger sekoia glimps analyse_malware
-* [ ] Execute playbook => meshroom execute sekoia workflow example_playbook
-* [ ] meshroom push => git push
-* [ ] meshroom publish => TODO @publish (meshroom publish sekoia [aws] [events] [consumer] [--mode pull])
-* [ ] completion (+ custom completion !)
-* [ ] watch => TODO @watch
-* [ ] send => TODO @send
+* [x] Product categories from dbi's work
+* [x] Sekoia integrations product category from dbi's work
+* [x] Execute trigger from CLI => meshroom trigger sekoia glimps analyse_malware
+* [x] Execute playbook => meshroom execute sekoia workflow example_playbook
+* [x] meshroom publish => TODO @publish (meshroom publish sekoia [aws] [events] [consumer] [--mode pull])
+* [x] completion (+ custom completion !)
+* [x] watch => TODO @watch
+* [x] produce => TODO @produce
+* [ ] rephrase templates/products definition
 * [ ] front graph
 * [ ] front forms
 * [ ] import front views
-
-
 * [ ] OCSF intake format template
-* [ ] send -> produce
-* [ ] rephrase templates/products definition
+
+* [x] send -> produce
 
 # Done
 
