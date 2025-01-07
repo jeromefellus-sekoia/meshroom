@@ -287,7 +287,8 @@ class Product(Model):
     def scaffold(self, template: str | Path):
         template = Path(TEMPLATES_DIR / "product" / template)
         if not template.is_dir():
-            raise ValueError(f"Template {template} not found\nAvailable templates are: {'\n'.join([f'- {t}' for t in TEMPLATES_DIR.glob('product/*')])}")
+            available_templates = "\n".join([f"- {t}" for t in TEMPLATES_DIR.glob("product/*")])
+            raise ValueError(f"Template {template} not found\nAvailable templates are: {available_templates}")
 
         info("Scaffold product", self.name, "from", template)
         generate_files_from_template(template, self.path, {"{{NAME}}": self.name}, overwrite_files=True)
