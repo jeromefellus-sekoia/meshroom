@@ -27,7 +27,7 @@ pass MESHROOM_SEKOIA_API_KEY | meshroom add sekoia -s API_KEY
 set -e
 
 meshroom list products sek
-meshroom list tenants sek
+meshroom list instances sek
 
 meshroom list integrations sekoia
 

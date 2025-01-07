@@ -1,5 +1,5 @@
 from uuid import uuid4
-from meshroom.model import Integration, Tenant
+from meshroom.model import Integration, Instance
 from meshroom.decorators import scaffold_trigger
 from .api import SekoiaAPI
 
@@ -57,7 +57,7 @@ def git_push_automation_module(integration: Integration):
         log(f"Automation module {name} is up-to-date in git repo")
 
 
-def update_playbook_module_from_git(integration: Integration, tenant: Tenant):
+def update_playbook_module_from_git(integration: Integration, instance: Instance):
     """A setup hook that syncs an integration's automation module from the git repo"""
     from meshroom.git import Git
     from meshroom.model import get_project_dir
@@ -66,8 +66,8 @@ def update_playbook_module_from_git(integration: Integration, tenant: Tenant):
     name = integration.target_product
     path = integration.path.parent / "dist" / "automations" / name
     api = SekoiaAPI(
-        tenant.settings.get("region", "fra1"),
-        tenant.get_secret("API_KEY"),
+        instance.settings.get("region", "fra1"),
+        instance.get_secret("API_KEY"),
     )
 
     # Trigger a pull of the automation module's code from the git repo

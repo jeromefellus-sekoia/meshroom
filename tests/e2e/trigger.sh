@@ -25,7 +25,7 @@ meshroom create product cisa_gov
 meshroom create integration sekoia cisa_gov action trigger --mode=push
 meshroom create capability cisa_gov action executor --mode=push --format=json
 
-# Create tenants and plug them
+# Create instances and plug them
 set +e
 pass MESHROOM_SEKOIA_API_KEY | meshroom add sekoia -s API_KEY
 set -e

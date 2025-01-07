@@ -3,7 +3,7 @@ from uuid import uuid4
 import yaml
 
 from .setup import create_intake_key
-from meshroom.model import Integration, Plug, Tenant
+from meshroom.model import Integration, Plug, Instance
 from meshroom.decorators import scaffold_consumer
 from .api import SekoiaAPI
 
@@ -38,7 +38,7 @@ import json
             integration.automation_connector_uuid = uuid
 
         # Since the intake format is not part of Sekoia.io catalog, prepend a setup step to
-        # create the custom intake format into the Tenant
+        # create the custom intake format into the Instance
         integration.add_setup_step(f"Create custom intake format '{name}'", create_custom_intake_format, order=2)
 
         # Then we can instanciate the actual intake
@@ -66,13 +66,13 @@ import json
     integration.save()
 
 
-def create_custom_intake_format(integration: Integration, plug: Plug, tenant: Tenant):
+def create_custom_intake_format(integration: Integration, plug: Plug, instance: Instance):
     """A setup hook that setup a custom Sekoia.io intake format from integration's files"""
     from meshroom.interaction import info
 
     api = SekoiaAPI(
-        tenant.settings.get("region", "fra1"),
-        tenant.get_secret("API_KEY"),
+        instance.settings.get("region", "fra1"),
+        instance.get_secret("API_KEY"),
     )
     name = integration.target_product
     path = integration.path.parent / "dist" / "formats" / name
@@ -132,7 +132,7 @@ def git_push_automation_module(integration: Integration):
         log(f"Automation module {name} is up-to-date in git repo")
 
 
-def update_playbook_module_from_git(integration: Integration, tenant: Tenant):
+def update_playbook_module_from_git(integration: Integration, instance: Instance):
     """A setup hook that syncs an integration's automation module from the git repo"""
     from meshroom.git import Git
     from meshroom.model import get_project_dir
@@ -141,8 +141,8 @@ def update_playbook_module_from_git(integration: Integration, tenant: Tenant):
     name = integration.target_product
     path = integration.path.parent / "dist" / "formats" / name
     api = SekoiaAPI(
-        tenant.settings.get("region", "fra1"),
-        tenant.get_secret("API_KEY"),
+        instance.settings.get("region", "fra1"),
+        instance.get_secret("API_KEY"),
     )
 
     # Trigger a pull of the automation module's code from the git repo

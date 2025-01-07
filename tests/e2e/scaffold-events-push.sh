@@ -25,7 +25,7 @@ meshroom create product example
 meshroom create integration sekoia example events consumer --mode=push
 meshroom create capability example events producer --mode=push --format=json
 
-# Create tenants and plug them
+# Create instances and plug them
 set +e
 pass MESHROOM_SEKOIA_API_KEY | meshroom add sekoia -s API_KEY
 set -e

@@ -148,8 +148,8 @@ class Product(Model):
         return len(list(list_integrations(product=self.name)))
 
     @property
-    def tenants(self):
-        return list(list_tenants(self.name))
+    def instances(self):
+        return list(list_instances(self.name))
 
     def add_capability(self, role: Role, topic: str, mode: Mode, format: str | None = None):
         """
@@ -557,7 +557,7 @@ class Integration(Model):
         """
         ast = AST(self.path.with_suffix(".py"))
         if f := ast.append_function(func):
-            ast.add_imports(Integration, Plug, Tenant)
+            ast.add_imports(Integration, Plug, Instance)
             f.decorate(
                 decorator,
                 **decorator_kwargs,
@@ -567,21 +567,21 @@ class Integration(Model):
         return self
 
     def up(self, plug: "Plug"):
-        """Setup the Integration on the tenant"""
+        """Setup the Integration on the instance"""
         info(f"> Setup {self.role}")
-        tenant = plug.get_src_tenant() if self.role in ("producer", "trigger") else plug.get_dst_tenant()
+        instance = plug.get_src_instance() if self.role in ("producer", "trigger") else plug.get_dst_instance()
         for i, f in enumerate(self.get_setup_functions("setup")):
             info(f"\n{i + 1}) {f.get_title()}")
-            f.call(plug=plug, integration=self, tenant=tenant)
+            f.call(plug=plug, integration=self, instance=instance)
         info("✓ done\n")
 
     def down(self, plug: "Plug"):
-        """Tear down the Integration from the tenant"""
+        """Tear down the Integration from the instance"""
         info("> Teardown", self.role)
-        tenant = plug.get_src_tenant() if self.role in ("producer", "trigger") else plug.get_dst_tenant()
+        instance = plug.get_src_instance() if self.role in ("producer", "trigger") else plug.get_dst_instance()
         for i, f in enumerate(self.get_setup_functions("teardown")):
             info(f"\n{i + 1}) {f.get_title()}")
-            f.call(plug=plug, integration=self, tenant=tenant)
+            f.call(plug=plug, integration=self, instance=instance)
         info("✓ done\n")
 
     def get_setup_functions(self, type: Literal["setup", "teardown", "scaffold", "watch"] | None = None):
@@ -626,11 +626,11 @@ class Integration(Model):
         return True
 
 
-class Tenant(Model):
+class Instance(Model):
     """
-    A Tenant is an instanciation of a product, configuring a set of Plug instances
-    :name: The name of the tenant, which is also the directory name under /config/:product
-    :product: The product the tenant instanciates
+    A Instance is an instantiation of a product, configuring a set of Plug instances
+    :name: The name of the instance, which is also the directory name under /config/:product
+    :product: The product the instance instantiates
     """
 
     name: str
@@ -654,7 +654,7 @@ class Tenant(Model):
                 config = yaml.safe_load(f)
         config["name"] = path.name
         config["product"] = path.parent.name
-        return Tenant.model_validate(config)
+        return Instance.model_validate(config)
 
     def save(self):
         self.path.mkdir(parents=True, exist_ok=True)
@@ -667,11 +667,11 @@ class Tenant(Model):
         return get_product(self.product).settings
 
     def set_secret(self, key: str, value: Any):
-        """Store a secret value for this tenant (GPG encrypted)"""
+        """Store a secret value for this instance (GPG encrypted)"""
         return secrets.set_secret(f"{self.product}_{self.name}_{key}", value)
 
     def get_secret(self, key: str, prompt_if_not_exist: str | bool | None = None):
-        """Retrieve a secret value for this tenant (GPG encrypted)"""
+        """Retrieve a secret value for this instance (GPG encrypted)"""
         if prompt_if_not_exist is True:
             prompt_if_not_exist = f"Enter secret for {key}"
 
@@ -682,59 +682,59 @@ class Tenant(Model):
 
     @property
     def plugs(self):
-        """List the plugs configured for this tenant"""
-        return list(list_plugs(src_tenant=self.name))
+        """List the plugs configured for this instance"""
+        return list(list_plugs(src_instance=self.name))
 
     @property
     def path(self):
-        """Get the path to the tenant's configuration directory"""
+        """Get the path to the instance's configuration directory"""
         return path_in_project(PROJECT_DIR / "config" / self.product / self.name)
 
     def watch(self, topic: str, role: Role | None = None, mode: Mode | None = None):
-        """Watch the tenant for data flowing through a given topic"""
+        """Watch the instance for data flowing through a given topic"""
         try:
             w = self.get_product().get_setup_functions("watch")[0]
         except IndexError:
             raise ValueError(f"🚫 No @watch function found for {self}")
-        yield from w.call(tenant=self, topic=topic, role=role, mode=mode)
+        yield from w.call(instance=self, topic=topic, role=role, mode=mode)
 
     def produce(self, topic, data: str | bytes, mode: Mode | None = None):
-        """Produce data flowing through a given topic to this tenant"""
+        """Produce data flowing through a given topic to this instance"""
         try:
             s = self.get_product().get_setup_functions("produce")[0]
         except IndexError:
             raise ValueError(f"🚫 No @produce function found for {self}")
         return s.call(
             plug=self,
-            tenant=self,
+            instance=self,
             topic=topic,
             mode=mode,
             data=data,
         )
 
     def trigger(self, topic, data: dict | None = None, mode: Mode | None = None):
-        """Emulate a trigger exposed by this tenant"""
+        """Emulate a trigger exposed by this instance"""
         try:
             s = self.get_product().get_setup_functions("trigger")[0]
         except IndexError:
             raise ValueError(f"🚫 No @trigger function found for {self}")
         return s.call(
             plug=self,
-            tenant=self,
+            instance=self,
             topic=topic,
             mode=mode,
             data=data,
         )
 
     def execute(self, topic, data: dict | None = None, mode: Mode | None = None):
-        """Remotely trigger an executor exposed by this tenant"""
+        """Remotely trigger an executor exposed by this instance"""
         try:
             s = self.get_product().get_setup_functions("execute")[0]
         except IndexError:
             raise ValueError(f"🚫 No @execute function found for {self}")
         return s.call(
             plug=self,
-            tenant=self,
+            instance=self,
             topic=topic,
             mode=mode,
             data=data,
@@ -743,19 +743,19 @@ class Tenant(Model):
 
 class Plug(Model):
     """
-    A Plug is a configuration of an integration between two Tenants of two Products
+    A Plug is a configuration of an integration between two Instances of two Products
     that defines the data exchange of a given topic
 
-    :src_tenant: The source tenant of the integration, producing data
-    :dst_tenant: The destination tenant of the integration, consuming data
-    :topic: The data topic exchanged between the two tenants
+    :src_instance: The source instance of the integration, producing data
+    :dst_instance: The destination instance of the integration, consuming data
+    :topic: The data topic exchanged between the two instances
     :mode: The mode of the data exchange (push or pull)
 
     A plug can be setup or torn down on the target systems via the up() and down() methods
     """
 
-    src_tenant: str
-    dst_tenant: str
+    src_instance: str
+    dst_instance: str
     topic: str
     mode: Mode
     format: str | None = None
@@ -765,7 +765,7 @@ class Plug(Model):
     settings: dict = {}
 
     def __str__(self):
-        out = f"{self.src_tenant} --[{self.topic}:{self.mode}]-> {self.dst_tenant}"
+        out = f"{self.src_instance} --[{self.topic}:{self.mode}]-> {self.dst_instance}"
         if self.format:
             out += f" ({self.format})"
         return out
@@ -783,8 +783,8 @@ class Plug(Model):
             topic = filepath.stem
         config["topic"] = topic
         config["mode"] = mode
-        config["src_tenant"] = filepath.parent.parent.parent.name
-        config["dst_tenant"] = filepath.parent.name
+        config["src_instance"] = filepath.parent.parent.parent.name
+        config["dst_instance"] = filepath.parent.name
         return Plug.model_validate(config)
 
     def save(self):
@@ -804,7 +804,7 @@ class Plug(Model):
     @property
     def path(self):
         fn = f"{self.topic}_{self.mode}" if self.mode == "pull" else self.topic
-        return path_in_project(get_tenant(self.src_tenant).path / "plugs" / self.dst_tenant / f"{fn}.yaml")
+        return path_in_project(get_instance(self.src_instance).path / "plugs" / self.dst_instance / f"{fn}.yaml")
 
     def get_secret(self, key: str, prompt_if_not_exist: str | bool | None = None):
         """Retrieve a secret value for this plug (GPG encrypted)"""
@@ -812,20 +812,20 @@ class Plug(Model):
             prompt_if_not_exist = f"Enter secret for {key}: "
 
         return secrets.get_secret(
-            f"{self.src_tenant}_{self.dst_tenant}_{self.topic}_{self.mode}_{key}",
+            f"{self.src_instance}_{self.dst_instance}_{self.topic}_{self.mode}_{key}",
             prompt_if_not_exist=prompt_if_not_exist or False,
         )
 
     def set_secret(self, key: str, value: Any):
         """Store a secret value for this plug (GPG encrypted)"""
         return secrets.set_secret(
-            f"{self.src_tenant}_{self.dst_tenant}_{self.topic}_{self.mode}_{key}",
+            f"{self.src_instance}_{self.dst_instance}_{self.topic}_{self.mode}_{key}",
             value,
         )
 
     def delete_secret(self, key: str):
         """Delete a secret value for this plug"""
-        return secrets.delete_secret(f"{self.src_tenant}_{self.dst_tenant}_{self.topic}_{self.mode}_{key}")
+        return secrets.delete_secret(f"{self.src_instance}_{self.dst_instance}_{self.topic}_{self.mode}_{key}")
 
     def get_consumer(self):
         """Get a suitable consumer to setup the consumer side of the integration"""
@@ -863,21 +863,21 @@ class Plug(Model):
             raise ValueError(f"Multiple executors found for {self}\n{executors}")
         return executors[0]
 
-    def get_src_tenant(self):
-        """Get the source Tenant of the integration"""
-        return get_tenant(self.src_tenant)
+    def get_src_instance(self):
+        """Get the source Instance of the integration"""
+        return get_instance(self.src_instance)
 
-    def get_dst_tenant(self):
-        """Get the destination Tenant of the integration"""
-        return get_tenant(self.dst_tenant)
+    def get_dst_instance(self):
+        """Get the destination Instance of the integration"""
+        return get_instance(self.dst_instance)
 
     def get_src_product(self):
         """Get the source Product of the integration"""
-        return get_product(self.get_src_tenant().product)
+        return get_product(self.get_src_instance().product)
 
     def get_dst_product(self):
         """Get the destination Product of the integration"""
-        return get_product(self.get_dst_tenant().product)
+        return get_product(self.get_dst_instance().product)
 
     def get_unconfigured_settings(self):
         """List the settings that are not configured yet for the producer and the consumer"""
@@ -889,7 +889,7 @@ class Plug(Model):
         return p + c if self.mode == "pull" else c + p
 
     def up(self):
-        """Setup the integration on the target Tenants"""
+        """Setup the integration on the target Instances"""
         if self.status == "up":
             return debug(f"🚫 {self} is already up")
 
@@ -911,7 +911,7 @@ class Plug(Model):
         return self.save()
 
     def down(self):
-        """Tear down the integration on the target Tenants"""
+        """Tear down the integration on the target Instances"""
         if self.status == "down":
             return debug(f"🚫 {self} is already down")
 
@@ -934,7 +934,7 @@ class Plug(Model):
             raise ValueError(f"🚫 No @watch function found for {self}")
         yield from w.call(
             plug=self,
-            tenant=self.get_dst_tenant(),
+            instance=self.get_dst_instance(),
             integration=self.get_consumer(),
             mode=self.mode,
         )
@@ -947,7 +947,7 @@ class Plug(Model):
             raise ValueError(f"🚫 No @produce function found for {self}")
         return s.call(
             plug=self,
-            tenant=self.get_dst_tenant(),
+            instance=self.get_dst_instance(),
             integration=self.get_consumer(),
             mode=self.mode,
             data=data,
@@ -961,7 +961,7 @@ class Plug(Model):
             raise ValueError(f"🚫 No @trigger function found for {self}")
         return s.call(
             plug=self,
-            tenant=self.get_src_tenant(),
+            instance=self.get_src_instance(),
             integration=self.get_trigger(),
             mode=self.mode,
             data=data,
@@ -975,7 +975,7 @@ class Plug(Model):
             raise ValueError(f"🚫 No @execute function found for {self}")
         return s.call(
             plug=self,
-            tenant=self.get_dst_tenant(),
+            instance=self.get_dst_instance(),
             integration=self.get_executor(),
             mode=self.mode,
             data=data,
@@ -1047,23 +1047,23 @@ def list_products(tags: set[str] | None = None, search: str | None = None):
                 yield p
 
 
-def list_tenants(product: str | None = None, search: str | None = None) -> Generator[Tenant, None, None]:
+def list_instances(product: str | None = None, search: str | None = None) -> Generator[Instance, None, None]:
     """
-    List all tenants found in the project's config/ directory
-    If a product is specified, only list tenants for this product
+    List all instances found in the project's config/ directory
+    If a product is specified, only list instances for this product
     """
     path = PROJECT_DIR / "config"
     if product:
         path = path_in_project(path / product)
         if path.is_dir():
-            for tenant_dir in path.iterdir():
-                if tenant_dir.is_dir() and (search is None or search in tenant_dir.name):
-                    yield Tenant.load(tenant_dir)
+            for instance_dir in path.iterdir():
+                if instance_dir.is_dir() and (search is None or search in instance_dir.name):
+                    yield Instance.load(instance_dir)
     else:
         if path.is_dir():
             for product_dir in path.iterdir():
                 if product_dir.is_dir():
-                    yield from list_tenants(product_dir.name, search=search)
+                    yield from list_instances(product_dir.name, search=search)
 
 
 @cache
@@ -1077,58 +1077,58 @@ def get_product(product: str):
 
 
 @cache
-def get_tenant(tenant: str, product: str | None = None):
-    """Get a tenant by name"""
+def get_instance(instance: str, product: str | None = None):
+    """Get a instance by name"""
     path = path_in_project(PROJECT_DIR / "config")
     if product:
-        tenant_dir = path / product / tenant
-        if tenant_dir.is_dir():
-            return Tenant.load(tenant_dir)
+        instance_dir = path / product / instance
+        if instance_dir.is_dir():
+            return Instance.load(instance_dir)
     else:
-        for t in list_tenants():
-            if t.name == tenant:
+        for t in list_instances():
+            if t.name == instance:
                 return t
-    raise ValueError(f"Tenant {tenant} not found")
+    raise ValueError(f"Instance {instance} not found")
 
 
-def create_tenant(product: str, name: str | None = None):
+def create_instance(product: str, name: str | None = None):
     name = name or product
-    tenant_dir = path_in_project(PROJECT_DIR / "config" / product / name)
-    if tenant_dir.exists():
-        debug(f"🚫 Tenant {name} already exists")
-        return Tenant.load(tenant_dir)
+    instance_dir = path_in_project(PROJECT_DIR / "config" / product / name)
+    if instance_dir.exists():
+        debug(f"🚫 Instance {name} already exists")
+        return Instance.load(instance_dir)
 
     if not (PROJECT_DIR / "products" / product).is_dir():
         raise ValueError(f"Product {product} not found")
 
-    tenant_dir.mkdir(parents=True, exist_ok=True)
-    info(f"Create tenant {name} for product {product}")
-    return Tenant.load(tenant_dir).save()
+    instance_dir.mkdir(parents=True, exist_ok=True)
+    info(f"Create instance {name} for product {product}")
+    return Instance.load(instance_dir).save()
 
 
-def delete_tenant(tenant: str, product: str | None = None):
+def delete_instance(instance: str, product: str | None = None):
     path = PROJECT_DIR / "config"
-    get_tenant(tenant, product)
+    get_instance(instance, product)
     if product:
-        path = path_in_project(path / product / tenant)
+        path = path_in_project(path / product / instance)
         shutil.rmtree(path)
         info("✓ Removed", path)
     else:
         for product_dir in path.iterdir():
-            if path_in_project(product_dir / tenant).is_dir():
-                delete_tenant(tenant, product_dir.name)
+            if path_in_project(product_dir / instance).is_dir():
+                delete_instance(instance, product_dir.name)
 
 
-def plug(src_tenant: str, dst_tenant: str, topic: str, mode: Mode | None = None, format: str | None = None):
+def plug(src_instance: str, dst_instance: str, topic: str, mode: Mode | None = None, format: str | None = None):
     """
-    Create a new Plug between two Tenants for a given topic
+    Create a new Plug between two Instances for a given topic
     """
-    # Ensure tenants exist
-    src = get_tenant(src_tenant)
-    dst = get_tenant(dst_tenant)
+    # Ensure instances exist
+    src = get_instance(src_instance)
+    dst = get_instance(dst_instance)
     try:
         # Check if the plug already exists (whatever the format)
-        plug = get_plug(src_tenant, dst_tenant, topic, mode)
+        plug = get_plug(src_instance, dst_instance, topic, mode)
         debug(f"🚫 Plug {plug}  already exists at {plug.path}")
         return plug
     except ValueError:
@@ -1140,8 +1140,8 @@ def plug(src_tenant: str, dst_tenant: str, topic: str, mode: Mode | None = None,
             for consumer in consumers:
                 if producer.matches(consumer):
                     plug = Plug(
-                        src_tenant=src_tenant,
-                        dst_tenant=dst_tenant,
+                        src_instance=src_instance,
+                        dst_instance=dst_instance,
                         topic=topic,
                         mode=producer.mode or consumer.mode or mode,
                         format=producer.format or consumer.format or format,
@@ -1152,8 +1152,8 @@ def plug(src_tenant: str, dst_tenant: str, topic: str, mode: Mode | None = None,
             for executor in executors:
                 if trigger.matches(executor):
                     plug = Plug(
-                        src_tenant=src_tenant,
-                        dst_tenant=dst_tenant,
+                        src_instance=src_instance,
+                        dst_instance=dst_instance,
                         topic=topic,
                         mode=trigger.mode or executor.mode or mode,
                         format=trigger.format or executor.format or format,
@@ -1161,7 +1161,7 @@ def plug(src_tenant: str, dst_tenant: str, topic: str, mode: Mode | None = None,
                     info(f"✓ Plugged {plug}")
                     return plug
 
-        raise ValueError(f"""❌ No integration between {dst_tenant} ({dst.product}) and {src_tenant} ({src.product}) for topic {topic} (mode={mode}) is implemented
+        raise ValueError(f"""❌ No integration between {dst_instance} ({dst.product}) and {src_instance} ({src.product}) for topic {topic} (mode={mode}) is implemented
 
     Consumers found: {consumers or 'None'}
     Producers found: {producers or 'None'}
@@ -1175,11 +1175,11 @@ def plug(src_tenant: str, dst_tenant: str, topic: str, mode: Mode | None = None,
 """)
 
 
-def unplug(src_tenant: str, dst_tenant: str, topic: str, mode: Mode | None = None):
+def unplug(src_instance: str, dst_instance: str, topic: str, mode: Mode | None = None):
     try:
-        get_plug(src_tenant, dst_tenant, topic, mode).delete()
+        get_plug(src_instance, dst_instance, topic, mode).delete()
     except ValueError:
-        error(f"❌ Plug {src_tenant} --[{topic}:{mode}]-> {dst_tenant} not found")
+        error(f"❌ Plug {src_instance} --[{topic}:{mode}]-> {dst_instance} not found")
 
 
 def list_integrations(
@@ -1242,8 +1242,8 @@ def get_integration(product: str, target_product: str, topic: str, role: Role, m
 
 @cache
 def list_plugs(
-    src_tenant: str | None = None,
-    dst_tenant: str | None = None,
+    src_instance: str | None = None,
+    dst_instance: str | None = None,
     topic: str | None = None,
     mode: Mode | None = None,
 ):
@@ -1253,17 +1253,17 @@ def list_plugs(
     for product_dir in path.iterdir():
         if not product_dir.is_dir():
             continue
-        for src_tenant_dir in product_dir.iterdir():
-            if not (src_tenant_dir / "plugs").is_dir():
+        for src_instance_dir in product_dir.iterdir():
+            if not (src_instance_dir / "plugs").is_dir():
                 continue
-            for dst_tenant_dir in (src_tenant_dir / "plugs").iterdir():
-                if dst_tenant_dir.is_dir():
-                    for plug_file in dst_tenant_dir.iterdir():
+            for dst_instance_dir in (src_instance_dir / "plugs").iterdir():
+                if dst_instance_dir.is_dir():
+                    for plug_file in dst_instance_dir.iterdir():
                         if plug_file.is_file():
                             p = Plug.load(plug_file)
                             if (
-                                (not src_tenant or p.src_tenant == src_tenant)
-                                and (not dst_tenant or p.dst_tenant == dst_tenant)
+                                (not src_instance or p.src_instance == src_instance)
+                                and (not dst_instance or p.dst_instance == dst_instance)
                                 and (not topic or p.topic == topic)
                                 and (mode is None or p.mode == mode)
                             ):
@@ -1271,10 +1271,10 @@ def list_plugs(
 
 
 @cache
-def get_plug(src_tenant: str, dst_tenant: str, topic: str, mode: Mode | None = None):
-    for plug in list_plugs(src_tenant, dst_tenant, topic, mode):
+def get_plug(src_instance: str, dst_instance: str, topic: str, mode: Mode | None = None):
+    for plug in list_plugs(src_instance, dst_instance, topic, mode):
         return plug
-    raise ValueError(f"Plug {src_tenant} --[{topic}]-> {dst_tenant}  {mode or ''} not found")
+    raise ValueError(f"Plug {src_instance} --[{topic}]-> {dst_instance}  {mode or ''} not found")
 
 
 def scaffold_integration(
@@ -1334,48 +1334,48 @@ def create_product(name: str, **kwargs):
     return Product.load(path_in_project(PROJECT_DIR / "products" / name)).update(**kwargs)
 
 
-def up(src_tenant: str | None = None, dst_tenant: str | None = None, topic: str | None = None, mode: Mode | None = None):
-    for plug in list_plugs(src_tenant, dst_tenant, topic, mode):
+def up(src_instance: str | None = None, dst_instance: str | None = None, topic: str | None = None, mode: Mode | None = None):
+    for plug in list_plugs(src_instance, dst_instance, topic, mode):
         plug.up()
 
 
-def down(src_tenant: str | None = None, dst_tenant: str | None = None, topic: str | None = None, mode: Mode | None = None):
-    for plug in list_plugs(src_tenant, dst_tenant, topic, mode):
+def down(src_instance: str | None = None, dst_instance: str | None = None, topic: str | None = None, mode: Mode | None = None):
+    for plug in list_plugs(src_instance, dst_instance, topic, mode):
         plug.down()
 
 
-def watch(tenant: str, dst_tenant: str | None, topic: str, mode: Mode | None = None):
-    if dst_tenant:
-        p = get_plug(tenant, dst_tenant, topic, mode)
+def watch(instance: str, dst_instance: str | None, topic: str, mode: Mode | None = None):
+    if dst_instance:
+        p = get_plug(instance, dst_instance, topic, mode)
         w = p.watch()
         log(f"Watching plug {p} for {topic}", file=sys.stderr)
         return w
     else:
-        t = get_tenant(tenant)
+        t = get_instance(instance)
         w = t.watch(topic, "consumer", mode)
-        log(f"Watching tenant {t} for {topic}", file=sys.stderr)
+        log(f"Watching instance {t} for {topic}", file=sys.stderr)
         return w
 
 
-def produce(tenant: str, dst_tenant: str | None, topic: str, data: str | bytes, mode: Mode | None = None):
-    if dst_tenant:
-        return get_plug(tenant, dst_tenant, topic, mode).produce(data)
+def produce(instance: str, dst_instance: str | None, topic: str, data: str | bytes, mode: Mode | None = None):
+    if dst_instance:
+        return get_plug(instance, dst_instance, topic, mode).produce(data)
     else:
-        return get_tenant(tenant).produce(topic, data, mode=mode)
+        return get_instance(instance).produce(topic, data, mode=mode)
 
 
-def trigger(tenant: str, dst_tenant: str | None, topic: str, data: dict | None = None, mode: Mode | None = None):
-    if dst_tenant:
-        return get_plug(tenant, dst_tenant, topic, mode).trigger(data)
+def trigger(instance: str, dst_instance: str | None, topic: str, data: dict | None = None, mode: Mode | None = None):
+    if dst_instance:
+        return get_plug(instance, dst_instance, topic, mode).trigger(data)
     else:
-        return get_tenant(tenant).trigger(topic, data, mode=mode)
+        return get_instance(instance).trigger(topic, data, mode=mode)
 
 
-def execute(tenant: str, dst_tenant: str | None, topic: str, data: dict | None = None, mode: Mode | None = None):
-    if dst_tenant:
-        return get_plug(tenant, dst_tenant, topic, mode).execute(data)
+def execute(instance: str, dst_instance: str | None, topic: str, data: dict | None = None, mode: Mode | None = None):
+    if dst_instance:
+        return get_plug(instance, dst_instance, topic, mode).execute(data)
     else:
-        return get_tenant(tenant).execute(topic, data, mode=mode)
+        return get_instance(instance).execute(topic, data, mode=mode)
 
 
 def publish(

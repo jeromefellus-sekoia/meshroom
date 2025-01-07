@@ -7,8 +7,8 @@ def test_plug():
     p = plug("otherproduct", "myproduct", "stuff", "pull", "json")
 
     assert p == Plug(
-        src_tenant="otherproduct",
-        dst_tenant="myproduct",
+        src_instance="otherproduct",
+        dst_instance="myproduct",
         topic="stuff",
         mode="pull",
         format="json",

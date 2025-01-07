@@ -1,10 +1,10 @@
 from meshroom.decorators import setup_consumer, teardown_consumer
-from meshroom.model import Integration, Plug, Tenant
+from meshroom.model import Integration, Plug, Instance
 from .api import SekoiaAPI
 
 
 @setup_consumer("events", order="first")
-def create_intake_key(integration: Integration, plug: Plug, tenant: Tenant):
+def create_intake_key(integration: Integration, plug: Plug, instance: Instance):
     """Create an intake key to consume events"""
     from meshroom.interaction import debug, info
 
@@ -13,8 +13,8 @@ def create_intake_key(integration: Integration, plug: Plug, tenant: Tenant):
         return intake_key
 
     api = SekoiaAPI(
-        tenant.settings.get("region", "fra1"),
-        tenant.get_secret("API_KEY"),
+        instance.settings.get("region", "fra1"),
+        instance.get_secret("API_KEY"),
     )
 
     if not getattr(integration, "intake_format_uuid", None):
@@ -64,13 +64,13 @@ def create_intake_key(integration: Integration, plug: Plug, tenant: Tenant):
 
 
 @teardown_consumer("events")
-def delete_intake_key(integration: Integration, plug: Plug, tenant: Tenant):
+def delete_intake_key(integration: Integration, plug: Plug, instance: Instance):
     """Delete the intake key when the plug is torn down"""
     from meshroom.interaction import info
 
     api = SekoiaAPI(
-        tenant.settings.get("region", "fra1"),
-        tenant.get_secret("API_KEY"),
+        instance.settings.get("region", "fra1"),
+        instance.get_secret("API_KEY"),
     )
 
     intake_name = integration.target_product.replace("_", " ")

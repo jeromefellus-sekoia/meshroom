@@ -3,7 +3,7 @@ from pydantic import ValidationError
 
 from meshroom.interaction import debug, info, error
 from meshroom.utils import tabulate
-from meshroom.model import Mode, Plug, ProductSetting, Role, Tenant
+from meshroom.model import Mode, Plug, ProductSetting, Role, Instance
 import click
 from meshroom import model
 import sys
@@ -37,7 +37,7 @@ def init(path: str):
 
 @meshroom.group("list")
 def _list():
-    """List products, integrations, tenants and plugs"""
+    """List products, integrations, instances and plugs"""
     pass
 
 
@@ -62,10 +62,10 @@ def list_products(wide: bool = False, search: str | None = None):
                 "Tags",
                 *wide_headers,
                 "Nb integrations",
-                "Tenants",
+                "Instances",
             ],
             formatters={
-                Tenant: lambda x: x.name,
+                Instance: lambda x: x.name,
             },
         )
     )
@@ -93,75 +93,75 @@ def list_integrations(
         exit(1)
 
 
-@_list.command(name="tenants")
+@_list.command(name="instances")
 @click.argument("search", required=False)
 @click.option("--product", "-p", help="Filter by product")
-def list_tenants(product: str | None = None, search: str | None = None):
-    """List all tenants"""
+def list_instances(product: str | None = None, search: str | None = None):
+    """List all instances"""
     print(
         tabulate(
-            sorted(model.list_tenants(product=product, search=search), key=lambda x: (x.product, x.name)),
+            sorted(model.list_instances(product=product, search=search), key=lambda x: (x.product, x.name)),
             headers=["Name", "Product", "Plugs"],
         )
     )
 
 
 @_list.command(name="plugs")
-@click.argument("src_tenant", required=False)
-@click.argument("dst_tenant", required=False)
+@click.argument("src_instance", required=False)
+@click.argument("dst_instance", required=False)
 @click.option("--topic", "-t", required=False)
 @click.option("--mode", "-m", type=click.Choice(Mode.__args__), required=False)
 def list_plugs(
-    src_tenant: str | None = None,
-    dst_tenant: str | None = None,
+    src_instance: str | None = None,
+    dst_instance: str | None = None,
     topic: str | None = None,
     mode: Mode | None = None,
 ):
     """List all plugs"""
     print(
         tabulate(
-            sorted(model.list_plugs(src_tenant=src_tenant, dst_tenant=dst_tenant, topic=topic, mode=mode), key=lambda x: (x.src_tenant, x.dst_tenant)),
-            headers=["Src Tenant", "Dst Tenant", "Topic", "Mode", "Format"],
+            sorted(model.list_plugs(src_instance=src_instance, dst_instance=dst_instance, topic=topic, mode=mode), key=lambda x: (x.src_instance, x.dst_instance)),
+            headers=["Src Instance", "Dst Instance", "Topic", "Mode", "Format"],
         )
     )
 
 
 @meshroom.command()
-@click.argument("tenant", required=False)
-@click.argument("target_tenant", required=False)
+@click.argument("instance", required=False)
+@click.argument("target_instance", required=False)
 @click.argument("topic", required=False)
 @click.argument("mode", required=False, type=click.Choice(Mode.__args__))
 def up(
-    tenant: str | None = None,
-    target_tenant: str | None = None,
+    instance: str | None = None,
+    target_instance: str | None = None,
     topic: str | None = None,
     mode: Mode | None = None,
 ):
-    """Setup all declared Tenants, a single Tenant or a single Plug"""
-    model.up(tenant, target_tenant, topic, mode)
+    """Setup all declared Instances, a single Instance or a single Plug"""
+    model.up(instance, target_instance, topic, mode)
 
 
 @meshroom.command()
 def down(
-    tenant: str | None = None,
-    target_tenant: str | None = None,
+    instance: str | None = None,
+    target_instance: str | None = None,
     topic: str | None = None,
     mode: Mode | None = None,
 ):
-    """Unconfigure all Tenants, a single Tenant or a single Plug"""
-    model.down(tenant, target_tenant, topic, mode)
+    """Unconfigure all Instances, a single Instance or a single Plug"""
+    model.down(instance, target_instance, topic, mode)
 
 
 @meshroom.command()
-@click.argument("src_tenant")
-@click.argument("dst_tenant")
+@click.argument("src_instance")
+@click.argument("dst_instance")
 @click.argument("topic")
 @click.option("--mode", "-m", type=click.Choice(Mode.__args__), required=False)
 @click.option("--format", "-f", type=str, required=False)
 @click.option("--read-secret", "-s", multiple=True, help="Read a one-line secret from stdin (can be supplied multiple times)")
 def plug(
-    src_tenant: str,
-    dst_tenant: str,
+    src_instance: str,
+    dst_instance: str,
     topic: str,
     mode: Mode | None = None,
     format: str | None = None,
@@ -169,7 +169,7 @@ def plug(
 ):
     """Connect two products via an existing integration"""
     try:
-        plug = model.plug(src_tenant, dst_tenant, topic, mode, format)
+        plug = model.plug(src_instance, dst_instance, topic, mode, format)
         _configure_plug(
             plug,
             secrets={secret: sys.stdin.readline().strip() for secret in read_secret},
@@ -269,14 +269,14 @@ def add(
     name: str | None = None,
     read_secret: list[str] = [],
 ):
-    """Add a new Tenant for a given Product"""
+    """Add a new Instance for a given Product"""
     try:
-        tenant = model.create_tenant(product, name)
-        _configure_tenant(
-            tenant,
+        instance = model.create_instance(product, name)
+        _configure_instance(
+            instance,
             secrets={secret: sys.stdin.readline().strip() for secret in read_secret},
         )
-        info("✓ Tenant created")
+        info("✓ Instance created")
 
     except ValueError as e:
         error(e)
@@ -284,20 +284,20 @@ def add(
 
 
 @meshroom.command()
-@click.argument("tenant")
+@click.argument("instance")
 @click.option("--read-secret", "-s", multiple=True, help="Read a one-line secret from stdin (can be supplied multiple times)")
 def configure(
-    tenant: str,
+    instance: str,
     read_secret: list[str] = [],
 ):
-    """Reconfigure an existing Tenant"""
+    """Reconfigure an existing Instance"""
     try:
-        t = model.get_tenant(tenant)
-        _configure_tenant(
+        t = model.get_instance(instance)
+        _configure_instance(
             t,
             secrets={secret: sys.stdin.readline().strip() for secret in read_secret},
         )
-        info("✓ Tenant configured")
+        info("✓ Instance configured")
 
     except ValueError as e:
         error(e)
@@ -305,45 +305,45 @@ def configure(
 
 
 @meshroom.command()
-@click.argument("tenant")
+@click.argument("instance")
 @click.argument("product", required=False)
 def remove(
-    tenant: str,
+    instance: str,
     product: str | None = None,
 ):
-    """Remove a Tenant for a given Product"""
-    model.delete_tenant(tenant, product)
+    """Remove a Instance for a given Product"""
+    model.delete_instance(instance, product)
 
 
 @meshroom.command()
-@click.argument("src_tenant")
-@click.argument("dst_tenant")
+@click.argument("src_instance")
+@click.argument("dst_instance")
 @click.argument("topic")
 @click.option("--mode", type=click.Choice(Mode.__args__))
 def unplug(
-    src_tenant: str,
-    dst_tenant: str,
+    src_instance: str,
+    dst_instance: str,
     topic: str,
     mode: Mode | None = None,
 ):
-    """Disconnect an existing Plug between two Tenants"""
-    model.unplug(src_tenant, dst_tenant, topic, mode)
+    """Disconnect an existing Plug between two Instances"""
+    model.unplug(src_instance, dst_instance, topic, mode)
 
 
 @meshroom.command()
 @click.argument("topic")
-@click.argument("tenant")
-@click.argument("dst_tenant", required=False)
+@click.argument("instance")
+@click.argument("dst_instance", required=False)
 @click.option("--mode", type=click.Choice(Mode.__args__))
 def watch(
     topic: str,
-    tenant: str,
-    dst_tenant: str | None,
+    instance: str,
+    dst_instance: str | None,
     mode: Mode | None,
 ):
-    """Inspect data flowing through a Plug or a Tenant"""
+    """Inspect data flowing through a Plug or a Instance"""
     try:
-        for msg in model.watch(tenant, dst_tenant, topic, mode):
+        for msg in model.watch(instance, dst_instance, topic, mode):
             print(msg)
     except ValueError as e:
         error(e)
@@ -354,20 +354,20 @@ def watch(
 
 @meshroom.command()
 @click.argument("topic")
-@click.argument("tenant")
-@click.argument("dst_tenant", required=False)
+@click.argument("instance")
+@click.argument("dst_instance", required=False)
 @click.option("--mode", type=click.Choice(Mode.__args__))
 def produce(
     topic: str,
-    tenant: str,
-    dst_tenant: str | None = None,
+    instance: str,
+    dst_instance: str | None = None,
     mode: Mode | None = None,
 ):
-    """Produce data through a Plug or to a Tenant"""
+    """Produce data through a Plug or to a Instance"""
     try:
         debug("Waiting for events on stdandard input...\n")
         for line in sys.stdin:
-            print(model.produce(tenant, dst_tenant, topic, data=line.strip(), mode=mode))
+            print(model.produce(instance, dst_instance, topic, data=line.strip(), mode=mode))
     except ValueError as e:
         error(e)
         exit(1)
@@ -375,23 +375,23 @@ def produce(
 
 @meshroom.command()
 @click.argument("topic")
-@click.argument("tenant")
-@click.argument("dst_tenant", required=False)
+@click.argument("instance")
+@click.argument("dst_instance", required=False)
 @click.option("--mode", type=click.Choice(Mode.__args__))
 @click.option("--param", "-p", multiple=True)
 def execute(
     topic: str,
-    tenant: str,
-    dst_tenant: str | None = None,
+    instance: str,
+    dst_instance: str | None = None,
     mode: Mode | None = None,
     param: list[str] = [],
 ):
-    """Execute an executor exposed by a Plug's or a Tenant's topic"""
+    """Execute an executor exposed by a Plug's or a Instance's topic"""
     try:
         print(
             model.execute(
-                tenant,
-                dst_tenant,
+                instance,
+                dst_instance,
                 topic,
                 data={k: v for k, v in (p.split("=") for p in param)},
                 mode=mode,
@@ -404,23 +404,23 @@ def execute(
 
 @meshroom.command()
 @click.argument("topic")
-@click.argument("tenant")
-@click.argument("dst_tenant", required=False)
+@click.argument("instance")
+@click.argument("dst_instance", required=False)
 @click.option("--mode", type=click.Choice(Mode.__args__))
 @click.option("--param", "-p", multiple=True)
 def trigger(
     topic: str,
-    tenant: str,
-    dst_tenant: str | None = None,
+    instance: str,
+    dst_instance: str | None = None,
     mode: Mode | None = None,
     param: list[str] = [],
 ):
-    """Trigger an trigger exposed by a Plug's or a Tenant's topic"""
+    """Trigger an trigger exposed by a Plug's or a Instance's topic"""
     try:
         print(
             model.trigger(
-                tenant,
-                dst_tenant,
+                instance,
+                dst_instance,
                 topic,
                 data={k: v for k, v in (p.split("=") for p in param)},
                 mode=mode,
@@ -457,7 +457,7 @@ def publish(
         exit(1)
 
 
-def _configure_tenant(t: Tenant, secrets: dict[str, str] = {}):
+def _configure_instance(t: Instance, secrets: dict[str, str] = {}):
     t.settings = t.settings or {}
     for setting in t.get_settings_schema():
         if setting.secret:
@@ -486,7 +486,7 @@ def _configure_plug(p: Plug, secrets: dict[str, str] = {}):
                 p.save()
 
 
-def _configure_secret(t: Tenant | Plug, setting: ProductSetting):
+def _configure_secret(t: Instance | Plug, setting: ProductSetting):
     title = f"{setting.name} (secret)"
     if t.get_secret(setting.name):
         title = f"{setting.name} (secret, press Enter to keep current value)"

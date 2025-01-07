@@ -1,15 +1,15 @@
 from meshroom.decorators import trigger
-from meshroom.model import Integration, Tenant
+from meshroom.model import Integration, Instance
 
 
 @trigger("action")
-def trigger_action(tenant: Tenant, integration: Integration, action: str | None = None, data: dict | None = None):
+def trigger_action(instance: Instance, integration: Integration, action: str | None = None, data: dict | None = None):
     """Trigger a Sekoia.io playbook action, given its UUID or name"""
     from .api import SekoiaAPI
 
     api = SekoiaAPI(
-        tenant.settings.get("region", "fra1"),
-        tenant.get_secret("API_KEY"),
+        instance.settings.get("region", "fra1"),
+        instance.get_secret("API_KEY"),
     )
 
     action_uuid = getattr(integration, "automation_action_uuid", None)

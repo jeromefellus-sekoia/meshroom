@@ -1,12 +1,12 @@
 import json
 from meshroom.decorators import produce
 from .api import SekoiaAPI
-from meshroom.model import Plug, Tenant
+from meshroom.model import Plug, Instance
 
 
 @produce("events")
 def send_events(
-    tenant: Tenant,
+    instance: Instance,
     data: str | bytes | dict,
     plug: Plug | None = None,
 ):
@@ -14,8 +14,8 @@ def send_events(
     from meshroom.interaction import log
 
     api = SekoiaAPI(
-        tenant.settings.get("region", "fra1"),
-        tenant.get_secret("API_KEY"),
+        instance.settings.get("region", "fra1"),
+        instance.get_secret("API_KEY"),
     )
 
     if isinstance(data, bytes):
