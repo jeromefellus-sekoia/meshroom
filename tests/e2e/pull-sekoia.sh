@@ -20,6 +20,7 @@ cp -rf example/* tests/e2e/data
 cd tests/e2e/data
 meshroom pull sekoia
 
+
 # PERSONA 2) The end user experience starts here
 
 set +e

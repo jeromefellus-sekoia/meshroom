@@ -60,7 +60,7 @@ def publish_intake_format(integration: Integration):
     pr_source = Git(tmp_path).get_remote().split(":")[-1].split(".git")[0].split("/")[0]
     interaction.box(
         "Open a browser to",
-        f"{REPO}/compare/main...{pr_source}/{Git(tmp_path).get_branch()}?expand=1",
+        f"{REPO}/compare/main...{pr_source}:{Git(tmp_path).get_branch()}?expand=1",
         "To create a PR to SEKOIA-IO/intake-formats",
     )
 
@@ -110,7 +110,7 @@ def publish_automation_connector(integration: Integration):
     pr_source = Git(tmp_path).get_remote().split(":")[-1].split(".git")[0].split("/")[0]
     interaction.box(
         "Open a browser to",
-        f"{REPO}/compare/main...{pr_source}/{Git(tmp_path).get_branch()}?expand=1",
+        f"{REPO}/compare/main...{pr_source}:{Git(tmp_path).get_branch()}?expand=1",
         "To create a PR to SEKOIA-IO/automation-library",
     )
 
