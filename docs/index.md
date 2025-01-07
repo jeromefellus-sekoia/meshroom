@@ -2,7 +2,7 @@
 
 A command-line tool to build and manage Cybersecurity Mesh Architectures (CSMA).
 
-## Philosophy
+## Overview
 As defined by Gartner, a [Cybersecurity Mesh Architecture](https://www.gartner.com/en/information-technology/glossary/cybersecurity-mesh) is a graph of interoperated cybersecurity services, each fulfilling a specific functional need (SIEM, EDR, EASM, XDR, TIP, *etc*).
 Adopting the CSMA and Meshroom's philosophy means choosing an interconnected ecosystem of high-quality products with specialized scopes rather than a captive all-in-one solution.
 It then means :
@@ -11,7 +11,7 @@ It then means :
 - Leveraging Open APIs to make your products communicate and interact eachother
 - Exploiting products' extensibility via plugins and open-source components to encourage user-defined interoperability
 
-## Who ?
+## Users
 
 ### As a vendor : fight the N-to-N integration curse
 
