@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import shutil
+from unittest.mock import patch
 import pytest
 
 from meshroom.model import set_project_dir
@@ -19,3 +20,10 @@ def skip_during_ci(func):
     if os.getenv("GITHUB_RUN_ID"):
         return pytest.mark.skip(reason="Skipped during CI, please run interactively")(func)
     return func
+
+
+@pytest.fixture(scope="session", autouse=True)
+def overrides():
+    with patch("getpass.getpass") as getpass:
+        getpass.return_value = "password"
+        yield
