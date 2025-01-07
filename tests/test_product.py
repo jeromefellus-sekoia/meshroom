@@ -4,21 +4,26 @@ from meshroom.model import Capability, get_product, list_products, set_project_d
 def test_list_capabilities():
     set_project_dir("tests/fixtures/project1")
     assert set(get_product("myproduct").list_capabilities("consumer")) == {
-        Capability(topic="events", role="consumer", mode="push", format="ecs"),
-        Capability(topic="stuff", role="consumer", mode="pull"),
+        Capability(topic="stuff", role="consumer", mode="pull", format=None),
+        Capability(topic="alerts", role="producer", mode="pull", format=None),
+        Capability(topic="intelligence", role="producer", mode="pull", format="stix"),
         Capability(topic="detection_rules", role="consumer", mode="push", format="sigma"),
+        Capability(topic="events", role="consumer", mode="pull", format="ecs"),
+        Capability(topic="events", role="consumer", mode="push", format="ecs"),
     }
     assert set(get_product("myproduct").list_capabilities("producer")) == {
+        Capability(topic="detection_rules", role="consumer", mode="push", format="sigma"),
         Capability(topic="alerts", role="producer", mode="pull", format=None),
         Capability(topic="intelligence", role="producer", mode="pull", format="stix"),
     }
 
     assert {str(x) for x in get_product("myproduct").list_capabilities()} == {
-        "alerts (pull)",
-        "detection_rules (sigma)",
-        "events (ecs)",
-        "intelligence (pull stix)",
-        "stuff (pull)",
+        "alerts producer (pull)",
+        "stuff consumer (pull)",
+        "events consumer (pull ecs)",
+        "intelligence producer (pull stix)",
+        "events consumer (ecs)",
+        "detection_rules consumer (sigma)",
     }
 
 

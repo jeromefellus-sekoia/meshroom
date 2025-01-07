@@ -688,7 +688,7 @@ class Instance(Model):
     @property
     def path(self):
         """Get the path to the instance's configuration directory"""
-        return path_in_project(PROJECT_DIR / "config" / self.product / self.name)
+        return path_in_project(PROJECT_DIR / "instances" / self.product / self.name)
 
     def watch(self, topic: str, role: Role | None = None, mode: Mode | None = None):
         """Watch the instance for data flowing through a given topic"""
@@ -1049,10 +1049,10 @@ def list_products(tags: set[str] | None = None, search: str | None = None):
 
 def list_instances(product: str | None = None, search: str | None = None) -> Generator[Instance, None, None]:
     """
-    List all instances found in the project's config/ directory
+    List all instances found in the project's instances/ directory
     If a product is specified, only list instances for this product
     """
-    path = PROJECT_DIR / "config"
+    path = PROJECT_DIR / "instances"
     if product:
         path = path_in_project(path / product)
         if path.is_dir():
@@ -1079,7 +1079,7 @@ def get_product(product: str):
 @cache
 def get_instance(instance: str, product: str | None = None):
     """Get a instance by name"""
-    path = path_in_project(PROJECT_DIR / "config")
+    path = path_in_project(PROJECT_DIR / "instances")
     if product:
         instance_dir = path / product / instance
         if instance_dir.is_dir():
@@ -1093,7 +1093,7 @@ def get_instance(instance: str, product: str | None = None):
 
 def create_instance(product: str, name: str | None = None):
     name = name or product
-    instance_dir = path_in_project(PROJECT_DIR / "config" / product / name)
+    instance_dir = path_in_project(PROJECT_DIR / "instances" / product / name)
     if instance_dir.exists():
         debug(f"🚫 Instance {name} already exists")
         return Instance.load(instance_dir)
@@ -1107,7 +1107,7 @@ def create_instance(product: str, name: str | None = None):
 
 
 def delete_instance(instance: str, product: str | None = None):
-    path = PROJECT_DIR / "config"
+    path = PROJECT_DIR / "instances"
     get_instance(instance, product)
     if product:
         path = path_in_project(path / product / instance)
@@ -1247,7 +1247,7 @@ def list_plugs(
     topic: str | None = None,
     mode: Mode | None = None,
 ):
-    path = PROJECT_DIR / "config"
+    path = PROJECT_DIR / "instances"
     if not path.is_dir():
         return
     for product_dir in path.iterdir():

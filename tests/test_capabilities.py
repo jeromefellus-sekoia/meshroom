@@ -4,11 +4,12 @@ from meshroom.model import Capability, Integration, get_product, list_integratio
 def test_capabilities():
     set_project_dir("tests/fixtures/project1")
     assert set(get_product("myproduct").list_capabilities()) == {
-        Capability(topic="intelligence", role="producer", mode="pull", format="stix"),
-        Capability(topic="events", role="consumer", mode="push", format="ecs"),
-        Capability(topic="alerts", role="producer", mode="pull", format=None),
         Capability(topic="stuff", role="consumer", mode="pull", format=None),
+        Capability(topic="events", role="consumer", mode="pull", format="ecs"),
         Capability(topic="detection_rules", role="consumer", mode="push", format="sigma"),
+        Capability(topic="events", role="consumer", mode="push", format="ecs"),
+        Capability(topic="intelligence", role="producer", mode="pull", format="stix"),
+        Capability(topic="alerts", role="producer", mode="pull", format=None),
     }
 
     assert set(get_product("otherproduct").list_capabilities("events")) == {
