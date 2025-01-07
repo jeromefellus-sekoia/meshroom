@@ -12,13 +12,13 @@ def test_setup_decorator():
     }
 
     i = list_integrations("myproduct", topic="events")[0]
-    assert i.get_setup_functions() == [
+    assert i.get_hooks() == [
         Hook(
             product="myproduct",
             target_product=None,
             role="consumer",
             topic="events",
-            func=i.get_setup_functions()[0].func,
+            func=i.get_hooks()[0].func,
             mode=None,
             format="ecs",
             keep_when_overloaded=False,

@@ -542,7 +542,7 @@ class Integration(Model):
 
     def scaffold(self):
         info("Scaffold integration", self.product, "to", self.target_product, self.topic, self.role, self.mode)
-        for i, f in enumerate(self.get_setup_functions("scaffold")):
+        for i, f in enumerate(self.get_hooks("scaffold")):
             info(f"\n{i + 1}) {f.get_title()}")
             f.call(integration=self)
         return self
@@ -582,7 +582,7 @@ class Integration(Model):
         """Setup the Integration on the instance"""
         info(f"> Setup {self.role}")
         instance = plug.get_src_instance() if self.role in ("producer", "trigger") else plug.get_dst_instance()
-        for i, f in enumerate(self.get_setup_functions("setup")):
+        for i, f in enumerate(self.get_hooks("setup")):
             info(f"\n{i + 1}) {f.get_title()}")
             f.call(plug=plug, integration=self, instance=instance)
         info("✓ done\n")
@@ -591,12 +591,12 @@ class Integration(Model):
         """Tear down the Integration from the instance"""
         info("> Teardown", self.role)
         instance = plug.get_src_instance() if self.role in ("producer", "trigger") else plug.get_dst_instance()
-        for i, f in enumerate(self.get_setup_functions("teardown")):
+        for i, f in enumerate(self.get_hooks("teardown")):
             info(f"\n{i + 1}) {f.get_title()}")
             f.call(plug=plug, integration=self, instance=instance)
         info("✓ done\n")
 
-    def get_setup_functions(self, type: Literal["setup", "teardown", "scaffold", "watch"] | None = None):
+    def get_hooks(self, type: Literal["setup", "teardown", "scaffold", "watch"] | None = None):
         """
         List all the hooks defined for this integration, declared either:
         - via meshroom.decorators.setup(...) decorator at integration-level
@@ -628,7 +628,7 @@ class Integration(Model):
         """Publish the integration according to the defined product's @publish hooks"""
         if not self.path.with_suffix(".yml").is_file():
             return False  # Skip publishing if the integration isn't an explicitly defined one
-        funcs = self.get_setup_functions("publish")
+        funcs = self.get_hooks("publish")
         if not funcs:
             return False
         info(f"Publish integration {self}")
@@ -970,7 +970,7 @@ class Plug(Model):
     def watch(self):
         """Watch the integration for data received by its consumer end"""
         try:
-            w = self.get_consumer().get_setup_functions("watch")[0]
+            w = self.get_consumer().get_hooks("watch")[0]
         except IndexError:
             raise ValueError(f"🚫 No @watch function found for {self}")
         yield from w.call(
@@ -983,7 +983,7 @@ class Plug(Model):
     def produce(self, data: str | bytes):
         """Produce data flowing through the integration"""
         try:
-            s = self.get_consumer().get_setup_functions("produce")[0]
+            s = self.get_consumer().get_hooks("produce")[0]
         except IndexError:
             raise ValueError(f"🚫 No @produce function found for {self}")
         return s.call(
@@ -997,7 +997,7 @@ class Plug(Model):
     def trigger(self, data: str | bytes):
         """Emulate the triggering of the trigger exposed by this integration"""
         try:
-            s = self.get_trigger().get_setup_functions("trigger")[0]
+            s = self.get_trigger().get_hooks("trigger")[0]
         except IndexError:
             raise ValueError(f"🚫 No @trigger function found for {self}")
         return s.call(
@@ -1011,7 +1011,7 @@ class Plug(Model):
     def execute(self, data: str | bytes):
         """Execute the executor exposed by this integration"""
         try:
-            s = self.get_executor().get_setup_functions("execute")[0]
+            s = self.get_executor().get_hooks("execute")[0]
         except IndexError:
             raise ValueError(f"🚫 No @execute function found for {self}")
         return s.call(

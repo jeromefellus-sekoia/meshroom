@@ -1,9 +1,8 @@
-import pytest
 from meshroom.decorators import Hook
 from meshroom.model import Integration
 
 
-def test_generic_setup_function():
+def test_generic_hooks():
     f = Hook(
         product="myproduct",
         target_product=None,
@@ -27,7 +26,7 @@ def test_generic_setup_function():
     assert not f.match(Integration(product="myproduct", target_product="myproduct", role="consumer", topic="stuff", mode="push", format="whatever"))
 
 
-def test_specifig_setup_function():
+def test_specific_hooks():
     f = Hook(
         product="myproduct",
         target_product="otherproduct",
@@ -52,7 +51,7 @@ def test_specifig_setup_function():
     assert not f.match(Integration(product="myproduct", target_product="myproduct", role="consumer", topic="stuff", mode="push", format="whatever"))
 
 
-def test_specifig_setup_function_with_format():
+def test_specific_hooks_with_format():
     f = Hook(
         product="myproduct",
         target_product="otherproduct",
