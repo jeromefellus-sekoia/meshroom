@@ -25,5 +25,8 @@ def skip_during_ci(func):
 
 @pytest.fixture(scope="session", autouse=True)
 def overrides():
-    with patch("getpass.getpass", return_value="password"):
+    with (
+        patch("getpass.getpass", return_value="password"),
+        patch("getpass.unix_getpass", return_value="password"),
+    ):
         yield
