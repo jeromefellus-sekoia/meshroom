@@ -394,7 +394,7 @@ def produce(
 ):
     """Produce data through a Plug or to a Instance"""
     try:
-        debug("Waiting for events on stdandard input...\n")
+        debug("Waiting for events on standard input...\n")
         for line in sys.stdin:
             print(model.produce(instance, dst_instance, topic, data=line.strip(), mode=mode))
     except ValueError as e:

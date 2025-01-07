@@ -34,14 +34,14 @@ meshroom add cisa_gov
 meshroom plug sekoia cisa_gov action
 
 # Add git remote to all syncing custom module from git repo
-# set +e
-# git add .
-# git commit -a -m "Initial commit"
-# git remote add origin git@github.com:jeromefellus-sekoia/test-meshroom-custom-integration-cisa.git
-# git branch
-# git push -f -u origin master
-# set -e
+set +e
+git add .
+git commit -a -m "Initial commit"
+git remote add origin git@github.com:jeromefellus-sekoia/test-meshroom-custom-integration-cisa.git
+git branch
+git push -f -u origin master
+set -e
 
-# meshroom up
+meshroom up
 
 meshroom trigger action sekoia cisa_gov

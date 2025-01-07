@@ -1250,12 +1250,12 @@ def list_integrations(
                             out.append(i)
 
         # 2) Look for matching pairs of generic product capabilities, with lower priority
-        for a in get_product(product_dir.name).list_capabilities(role=role, topic=topic, format=format):
+        for a in get_product(product_dir.name).list_capabilities(role=role, topic=topic, format=format, mode=mode):
             for target_product_dir in path.iterdir() if target_product is None else [path / target_product]:
                 if not target_product_dir.is_dir():
                     continue
 
-                for b in get_product(target_product_dir.name).list_capabilities(topic=topic, format=format):
+                for b in get_product(target_product_dir.name).list_capabilities(topic=topic, format=format, mode=mode):
                     if a.matches(b):
                         # Yield generic Integration objects for matching capabilities
                         out.append(
