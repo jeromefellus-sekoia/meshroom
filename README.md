@@ -14,7 +14,13 @@ A Cybersecurity Mesh Architecture is a graph of interoperated cybersecurity serv
 
 ### Where to start ?
 
-Run `meshroom --help` or browse the documentation to start building meshes.
+Run
+
+```bash
+meshroom --help
+```
+
+or browse the documentation to start building meshes.
 
 ### Autocompletion
 
