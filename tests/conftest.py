@@ -1,11 +1,7 @@
 import os
 from pathlib import Path
 import shutil
-from unittest.mock import patch
 import pytest
-
-patch("getpass.getpass", return_value="password")
-patch("getpass.unix_getpass", return_value="password")
 
 
 PROJECT_DIR = Path(__file__).parent / "data"
