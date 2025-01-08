@@ -49,8 +49,8 @@ jobs:
           RELEASE_NAME="meshroom $TAG_NAME"
 
           # Try to create a new release; update if it already exists
-          gh release create "$TAG_NAME" --title "$RELEASE_NAME" || \
-          gh release edit "$TAG_NAME" --title "$RELEASE_NAME"
+          gh release create "$TAG_NAME" --title "$RELEASE_NAME" --generate-notes || \
+          gh release edit "$TAG_NAME" --title "$RELEASE_NAME" --generate-notes
 
   publish:
     uses: ./.github/workflows/publish.yml
