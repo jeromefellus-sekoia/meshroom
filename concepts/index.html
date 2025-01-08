@@ -49,7 +49,7 @@
     <ul class="current">
     <li class="toctree-l2"><a class="reference internal" href="#integration-lifecycle">Integration lifecycle</a>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#capabilities-graph">Capabilities graph</a>
+    <li class="toctree-l2"><a class="reference internal" href="#capability-graph">Capability graph</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#project">Project</a>
     </li>
@@ -65,7 +65,7 @@
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#hooks">Hooks</a>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#meshroom-project-structure">Meshroom project structure</a>
+    <li class="toctree-l2"><a class="reference internal" href="#wrap-up-with-meshroom-project-structure">Wrap-up with Meshroom project structure</a>
     </li>
     </ul>
                 </li>
@@ -105,28 +105,28 @@
                 <h1 id="concepts">Concepts</h1>
 <h2 id="integration-lifecycle">Integration lifecycle</h2>
 <p>TODO CYCLE SCHEMA</p>
-<h2 id="capabilities-graph">Capabilities graph</h2>
+<h2 id="capability-graph">Capability graph</h2>
 <p>Formally, a cybersecurity mesh architecture (CSMA) is a directed graph of products talking to eachother.
 More precisely, it is an overlay of 2 graphs:</p>
 <ul>
 <li>
-<p>The <strong>capabilities graph</strong>, which expresses the set of all products that can be interoperated with eachother and what functional capacity they expose. Nodes of this graph are Product capabilities, and edges connect complementary capabilities. For example, one product may <strong>consume</strong> alerts <strong>produced</strong> by another product, or can <strong>execute</strong> actions <strong>triggered</strong> by another one. Edges thus characterise interop opportunities about a certain <strong>Topic</strong> between a source product and a destination product. The direction of the edges materializes the dataflow : the source product <strong>produces/triggers</strong> information (resp. actions) that the destination product <strong>consumes/executes</strong>. An edge exists as soon as the products define a compatible producer (or trigger) / consumer (resp. executor) pair of <strong>Integrations</strong>. The edge also carries the <strong>roles</strong> in the data exchange</p>
+<p>The <strong>capability graph</strong>, which expresses the set of all products that can be interoperated with eachother and what functional capacity they expose. Nodes of this graph are Product capabilities, and edges connect complementary capabilities. For example, one product may <strong>consume</strong> alerts <strong>produced</strong> by another product, or can <strong>execute</strong> actions <strong>triggered</strong> by another one. Edges thus characterise interop opportunities about a certain <strong>Topic</strong> between a source product and a destination product. The direction of the edges materializes the dataflow : the source product <strong>produces/triggers</strong> information (resp. actions) that the destination product <strong>consumes/executes</strong>. An edge exists as soon as the products define a compatible producer (or trigger) / consumer (resp. executor) pair of <strong>Integrations</strong>. The edge also carries the <strong>roles</strong> in the data exchange</p>
 <ul>
 <li>in <strong>push</strong> mode, the producer is <strong>active</strong> and the consumer is <strong>passive</strong> (<em>e.g.</em> a Syslog forwarder)</li>
 <li>in <strong>pull</strong> mode, the producer is <strong>passive</strong> and the consumer is <strong>active</strong> (<em>e.g.</em> an HTTP GET API)</li>
 </ul>
 </li>
 </ul>
-<p>Therefore, an edge exist between product couples that expose complementary integrations for compatible topics, and match formats or other compatibility criteria you may need to refine the scope of a capability.</p>
-<p>The density if the capabilities graph measures the "openness" of the products constellation ; one wants to maximize the number of allowed interops between cybersecurity solutions available on the market</p>
+<p>Therefore, an edge exists between product couples that expose complementary integrations for compatible topics, and match formats (or other compatibility criteria you want to refine within the scope of a capability).</p>
+<p>The density if the capability graph measures the "openness" of the products constellation ; one wants to maximize the number of allowed interops between cybersecurity solutions available on the market</p>
 <ul>
-<li>The <strong>Mesh</strong> graph itself, which is an instanciation of several product <strong>Instances</strong> connected to eachother by <strong>Plugs</strong> who leverage compatible Integrations over the underlying capabilities graph. Instances correspond to actual user tenants of the underlying products, and plugs are live connections between those tenants. In order to setup the defined plugs, instances must be configured to enable the corresponding production/consumption triggering/execution logic, potentially via custom additions to the products themselves. Meshroom's spirit is to make all this configuration and provisioning as simple as a single <code>meshroom up</code> command.</li>
+<li>The <strong>Mesh</strong> graph itself, which means several product <strong>Instances</strong> connected to eachother by <strong>Plugs</strong> which leverage compatible Integrations over the underlying capability graph. Instances correspond to actual user <strong>tenants</strong> of the underlying products, and plugs are live connections between those tenants. In order to setup the defined plugs, instances must be configured to enable the corresponding production/consumption triggering/execution logic, potentially via custom additions to the products themselves. Meshroom's spirit is to make all this configuration and provisioning as simple as a single <code>meshroom up</code> command.</li>
 </ul>
-<p>To do so, Products, Integrations, Instances and Plugs are defined via YAML manifests and vendor code additions when required. All these files belong to a <strong>git-backed repository</strong> that can be shared, versioned via git and manipulated via the Meshroom CLI, exactly as, say, Helm charts can be shared among a community of Kubernetes users.</p>
-<p>Some <strong>sensitive data</strong>, like API keys and other secrets used to teleoperate the Instances are natively held and managed by Meshroom in a <strong>local GPG secrets store</strong>, that can also be shared following a classical GPG assymetric cryptography process. This decreases the risk of leak resulting from a spread of secrets used to co-ordinate numerous tenants, while easing the <strong>sharing</strong> of a full read-to-use SOC configuration.</p>
+<p>To do so, Products, Integrations, Instances and Plugs are defined via YAML manifests and vendor code additions when required. All these files belong to a <strong>git-backed repository</strong> that can be shared, versioned via git and manipulated via the Meshroom CLI (similar with Helm charts being shared among a community of Kubernetes users).</p>
+<p>Sensitive data, like API keys and other secrets used to teleoperate the Instances is natively managed by Meshroom in a <strong>local GPG secrets store</strong>. This store can also be shared, like any other GPG content, with GPG peers. This fosters the <strong>sharing</strong> of a SOC-as-code and limits the risk of information leakage.</p>
 <h2 id="project">Project</h2>
-<p>A Meshroom Project is a git-backed local directory on your computer, following a file structure the Meshroom CLI can understand and manipulate (see <a href="#meshroom-project-structure">Meshroom project structure</a>).</p>
-<p>You can start a new meshroom project via <code>meshroom init &lt;path&gt;</code>. This will setup a new local git repo and few minimal files in this directory so that you can start building your integrations and mesh architecture. You can then directly add a git remote via <code>git remote add &lt;remote&gt; &lt;remote_url&gt;</code> such as a GitHub repo to save, share and publish your project via <code>git push</code>, and use the directory as a classical Git repository.</p>
+<p>A Meshroom Project is a git-backed local directory on your computer, based on a file structure. Meshroom CLI handles this structure (see <a href="#meshroom-project-structure">Meshroom project structure</a>).</p>
+<p>You can start a new meshroom project via <code>meshroom init &lt;path&gt;</code>. This will setup a new local git repo and few minimal files in this directory so that you can start building your integrations and mesh architecture. You can then directly add a git remote via <code>git remote add &lt;remote&gt; &lt;remote_url&gt;</code> such as a GitHub repository to save, share and publish your project via <code>git push</code>, and use the directory as a classical Git repository.</p>
 <p>Subsequent meshroom commands must be executed at the <code>&lt;path&gt;</code>'s root and will manipulate its files hierarchy.</p>
 <h2 id="product">Product</h2>
 <p>In Meshroom, a Product is the definition of a cybersecurity product's capabilities. A Product is primarily defined via a YAML file with:</p>
@@ -139,7 +139,7 @@ More precisely, it is an overlay of 2 graphs:</p>
 <li>a <code>triggers</code> attribute, listing the <strong>trigger</strong> capabilities of the product</li>
 <li>a <code>executes</code> attribute, listing the <strong>executor</strong> capabilities of the product</li>
 </ul>
-<p>Here is a example consumer capability:</p>
+<p>Here is an example of consumer capability:</p>
 <pre><code class="language-yaml">...
 consumes:
     events:
@@ -149,13 +149,13 @@ consumes:
           format: syslog
 ...
 </code></pre>
-<p>This YAML strip tells that the product can <strong>consume</strong> the <strong>events</strong> topic in <strong>pull mode</strong> (aka active consumer, passive producer, as in HTTP GET) when events are formatted using ECS, and can consume events in <strong>push mode</strong> (aka passive consumer, active produver, as in syslog forwarding) as Syslog lines. Capabilities may be more generic (<em>e.g.</em> no format constraint) or more specific (<em>e.g.</em> add a protocol constraint to match). In all cases, two Products are said "interoperable" when we can find two corresponding capabilities</p>
+<p>This YAML strip tells that the product can <strong>consume</strong> the <strong>events</strong> topic in <strong>pull mode</strong> (aka active consumer, passive producer, as in HTTP GET) when events are formatted using ECS, and can consume events in <strong>push mode</strong> (aka passive consumer, active produver, as in syslog forwarding) as Syslog lines. Capabilities may be more generic (<em>e.g.</em> no format constraint) or more specific (<em>e.g.</em> add a protocol constraint to match). In all cases, two Products are said "interoperable" when they both have corresponding capabilities</p>
 <ul>
 <li>of complementary role (<code>consumes</code>-&gt;<code>produces</code> or <code>triggers</code>-&gt;<code>executes</code>)</li>
 <li>of identical topic ("events" here)</li>
 <li>of matching constraints (mode, format, etc). When a constraint is unset, the capability is considered "always matching" (<em>e.g</em> an ECS events producer will match a events consumer whose format is unset)</li>
 </ul>
-<p>Ideally, every product should define their full functional surface (incoming and outgoing data feeds, remlote API commands, etc) with appropriate constraint to clearly state their complete interop potential. This can be cumbersome, so Meshroom comes with a predefined set of <strong>Product Templates</strong> you can use to scaffold your own product. The templates catalog is sourced from Gartner's <a href="https://www.gartner.com/interactive/hc/5622491?ref=solrAll&amp;refval=433161127">Hype Cycle for Security Operations, 2024</a> and tries to cover all cybersecurity scopes, but feel free to contribute new templates if you feel we missed some product categories.</p>
+<p>Ideally, every product should define their full functional surface (incoming and outgoing data feeds, remote API commands, etc) with appropriate constraints to clearly state their complete interop potential. This can be cumbersome, so Meshroom comes with a predefined set of <strong>Product Templates</strong> to scaffold your own product. The product templates catalog is based on Gartner's "Hype Cycle for Security Operations 2024" and tries to cover the critical capabilities of these products, but feel free to contribute new templates if you feel we missed some product categories.</p>
 <p>To create a new product in your Meshroom project, simply use the</p>
 <p><code>meshroom create product</code></p>
 <p>command. You may base your product on an existing template via <code>meshroom create product --from &lt;template&gt;</code></p>
@@ -171,7 +171,7 @@ consumes:
 <p>You can list and search among existing integrations using</p>
 <p><code>meshroom list integrations</code></p>
 <h2 id="instance">Instance</h2>
-<p>Once your project defines a <strong>Capabilities Graph</strong> of <strong>Products</strong> and <strong>Integrations</strong>, you're ready to define a <strong>Mesh architecture</strong> by picking up among its allowed nodes and edges.</p>
+<p>Once your project defines a <strong>Capability Graph</strong> of <strong>Products</strong> and <strong>Integrations</strong>, you're ready to define a <strong>Mesh architecture</strong> by picking up among its allowed nodes and edges.</p>
 <p>In a mesh, nodes are called <strong>Instances</strong> and edges are called <strong>Plugs</strong></p>
 <p>You can add a new instance of a given product using</p>
 <p><code>meshroom add &lt;product&gt; [instance_name]</code></p>
@@ -206,9 +206,9 @@ When no matching constraint set can be found out of all existing Integrations, t
 <p><code>meshroom produce</code> and <code>meshroom watch</code> commands, that respectively helps you producing and inspecting data flowing through your plugs.</p>
 <h2 id="hooks">Hooks</h2>
 <p>Many products require complex programmatic steps to setup an actual interop with a 3rd-party. The classical approach is to follow manual recipes from the products documentation, navigate through multiple admin panels and configuration forms to open the desired channel between two products. One of the main goals of Meshroom is to rationalize and fully automate these steps, so that <code>meshroom up</code> can submit the appropriate sequence of operations to all instances to configure the full mesh without direct user intervention.</p>
-<p>Willingness to favor remote tenant configuration via open APIs vary across vendors and solutions. Some products are simply not remote-configurable at all (think of adding syslog forwarding to an unexposed NGINX reverse-proxy). Others may require a very short but mandatory user navigation to their admin panel. Hopefully, more and more vendors embrace the CSMA philosophy and allow for completely remote configuration by 3rd-party providers.</p>
+<p>Willingness to favor remote tenant configuration via open APIs vary across vendors and solutions. Some products are simply not remote-configurable at all (think of adding syslog forwarding to an unexposed NGINX reverse-proxy). Others may require a very short but mandatory user navigation to their admin panel. Hopefully, more and more vendors embrace the CSMA approach and allow for completely remote configuration by 3rd-party providers.</p>
 <p>Meshroom takes into account those various regimes by allowing Products to define python hooks. Hooks are python decorated functions that will get executed in sequence upon <code>meshroom up</code>, taking the whole integration's context as arguments. Vendors and integrators can provide such hooks to implement automated procedures to remote-configure their product's capabilities. You can even provide boilerplate hooks to help user scaffold new integrations based on the products native extensibility features (plugins, custom formats, code addtions, <em>etc</em>), and publish hooks to guide the user through the vendor's homologation process required to publish their contribution into the product's official integrations catalog (marketplace, github PRs, <em>etc</em>).</p>
-<p>All hooks works by decorating vanilla python functions residing either inside</p>
+<p>Hooks use vanilla python functions decorators residing either inside</p>
 <ul>
 <li>the product's directory (for product-wide generic hooks)</li>
 <li>a specific integration's subdirectory (for plug-specific hooks that depend on a specific products couple)</li>
@@ -276,7 +276,7 @@ When no matching constraint set can be found out of all existing Integrations, t
 </table>
 <p>Hooks may specify an order (an integer or 'first'/'last' keywords) field to order the setup sequence.</p>
 <p>Hooks marked as "required" are required for the corresponding Meshroom command to work on the said product. They are not mandatory for a product definition to be valid, but not all meshroom command will be available until these hooks are implemented.</p>
-<h2 id="meshroom-project-structure">Meshroom project structure</h2>
+<h2 id="wrap-up-with-meshroom-project-structure">Wrap-up with Meshroom project structure</h2>
 <p>A Meshroom project is a git-backed directory on your computer, that you can version and share via your favorite online git service. The local project itself has the following structure:</p>
 <pre><code>┃
 ┣━ products                      🮤━━━  All products available in the capabilities graph
