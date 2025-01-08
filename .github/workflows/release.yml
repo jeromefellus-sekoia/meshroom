@@ -51,3 +51,7 @@ jobs:
           # Try to create a new release; update if it already exists
           gh release create "$TAG_NAME" --title "$RELEASE_NAME" || \
           gh release edit "$TAG_NAME" --title "$RELEASE_NAME"
+
+  publish:
+    uses: ./.github/workflows/publish.yml
+    needs: release
