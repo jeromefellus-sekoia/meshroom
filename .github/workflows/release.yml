@@ -49,4 +49,4 @@ jobs:
           RELEASE_NAME="meshroom $TAG_NAME"
 
           gh release delete "$TAG_NAME" -y || true
-          gh release create "$TAG_NAME" --title "$RELEASE_NAME" --generate-notes || \
+          gh release create "$TAG_NAME" --title "$RELEASE_NAME" --generate-notes
