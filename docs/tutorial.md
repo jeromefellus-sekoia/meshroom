@@ -4,7 +4,7 @@ This tutorial guides you through
 
 * integrating a dummy product in a meshroom project's capabilities graph
 * instantiating a mesh
-* setting up this mesh against real product tenants
+* setting up this mesh with real product tenants
 * playing and inspect data flowing through it
 
 We take an hypothetical intelligence-driven EDR called "myedr" as the examplar product to showcase the Meshroom CLI and underlying concepts.
@@ -22,7 +22,7 @@ This has scaffolded a local git repo with two directories: `products` and `insta
 
 ### 1. Gather knowledge about existing products
 
-In Meshroom's spirit, users may have already shared products definitions via, say, github.com, so you can browse publicly shared meshroom repos for products of interest to build your mesh.
+In Meshroom's spirit, users may have already shared products definitions via, say, github.com, so you can browse public shared meshroom repos for products of interest to build your mesh.
 
 Imagine we want to incorporate a Sekoia.io SOC platform tenant into our mesh. We can leverage existing definitions from [https://github.com/jeromefellus-sekoia/meshroom/tree/master/example/products/sekoia](https://github.com/jeromefellus-sekoia/meshroom/tree/master/example/products/sekoia), by simply copying the subdirectory to our project's `products/` folder.
 
