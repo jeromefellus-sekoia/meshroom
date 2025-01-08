@@ -1,5 +1,5 @@
 
-name: Push git tag on pyproject.toml version bump
+name: Test master branch and tag on pyproject.toml's version bump
 
 on:
   push:
@@ -26,6 +26,12 @@ jobs:
       - name: Get project version via poetry
         id: get_version
         run: echo "VERSION=$(poetry version -s)" >> $GITHUB_OUTPUT
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Run tests
+        run: poetry run pytest
 
       - name: Create and push tag
         env:
