@@ -1,5 +1,5 @@
 
-name: Test master branch and tag pyproject.toml's version
+name: Test master branch, then release pyproject.toml's version
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   release:
-    name: Create Tag and release on version bump
+    name: Test and release
     runs-on: ubuntu-latest
 
     permissions:
