@@ -42,24 +42,12 @@ jobs:
         run: |
           git tag v${{ steps.get_version.outputs.VERSION }}
           git push -f origin v${{ steps.get_version.outputs.VERSION }}
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-
-      - name: Install GitHub CLI
-        run: npm install -g @cli/cli
-
-      - name: Authenticate GH CLI
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh auth login --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
-
       - name: Create or Update Release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
         run: |
-          TAG_NAME=$(basename $GITHUB_REF)
+          TAG_NAME="v${{ steps.get_version.outputs.VERSION }}"
           RELEASE_NAME="Release $TAG_NAME"
 
           # Try to create a new release; update if it already exists
