@@ -1,5 +1,5 @@
 
-name: Test master branch and tag on pyproject.toml's version bump
+name: Test master branch and tag pyproject.toml's version
 
 on:
   push:
@@ -10,8 +10,11 @@ jobs:
   tag:
     name: Create Tag on version bump
     runs-on: ubuntu-latest
+
     permissions:
       contents: write
+      actions: write
+
     steps:
       - uses: actions/checkout@v4
 
