@@ -48,6 +48,5 @@ jobs:
           TAG_NAME="v${{ steps.get_version.outputs.VERSION }}"
           RELEASE_NAME="meshroom $TAG_NAME"
 
-          # Try to create a new release; update if it already exists
+          gh release delete "$TAG_NAME" -y || true
           gh release create "$TAG_NAME" --title "$RELEASE_NAME" --generate-notes || \
-          gh release edit "$TAG_NAME" --title "$RELEASE_NAME" --generate-notes
