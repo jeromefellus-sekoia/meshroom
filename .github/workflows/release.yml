@@ -49,5 +49,5 @@ jobs:
           RELEASE_NAME="meshroom $TAG_NAME"
 
           # Try to create a new release; update if it already exists
-          gh release create "$TAG_NAME" --title "$RELEASE_NAME" --notes "Automated release for tag $TAG_NAME." || \
-          gh release edit "$TAG_NAME" --title "$RELEASE_NAME" --notes "Updated release for tag $TAG_NAME."
+          gh release create "$TAG_NAME" --title "$RELEASE_NAME" || \
+          gh release edit "$TAG_NAME" --title "$RELEASE_NAME"
