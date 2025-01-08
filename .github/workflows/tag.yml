@@ -1,0 +1,33 @@
+
+name: Push git tag on pyproject.toml version bump
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  release:
+    name: Tag and release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install & Build Poetry
+        run: pip install poetry
+
+      - name: Get project version via poetry
+        id: get_version
+        run: echo "::set-output name=VERSION::$(poetry version -s)"
+
+      - name: Create and push tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git tag v${{ steps.get_version.outputs.VERSION }}
+          git push origin v${{ steps.get_version.outputs.VERSION }}
