@@ -11,7 +11,7 @@ jobs:
     uses: ./.github/workflows/pytest.yml
 
   release:
-    name: Test & release
+    name: Release
     runs-on: ubuntu-latest
     needs: test
 
