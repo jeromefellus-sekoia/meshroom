@@ -20,7 +20,7 @@ def test_list_capabilities():
     assert {str(x) for x in get_product("myproduct").list_capabilities()} == {
         "alerts producer (pull)",
         "stuff consumer (pull)",
-        "events consumer (pull ecs)",
+        "events consumer (pull ecs)",plop
         "intelligence producer (pull stix)",
         "events consumer (ecs)",
         "detection_rules consumer (sigma)",
