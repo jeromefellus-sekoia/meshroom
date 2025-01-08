@@ -25,7 +25,7 @@ jobs:
 
       - name: Get project version via poetry
         id: get_version
-        run: echo "::set-output name=VERSION::$(poetry version -s)"
+        run: echo "VERSION=$(poetry version -s)" >> $GITHUB_OUTPUT
 
       - name: Create and push tag
         env:
