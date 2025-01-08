@@ -7,6 +7,13 @@ jobs:
   build-n-publish:
     name: Build and publish to PyPI
     runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/meshroom
+
+    permissions:
+      id-token: write
+
     steps:
       - uses: actions/checkout@v4
 
@@ -15,15 +22,11 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install & Build Poetry
+      - name: Install Poetry
         run: pip install poetry
 
-      - name: Build and Publish
+      - name: Poetry Build
         run: poetry build
 
-      - name: Publish to PyPI
-        env:
-          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
-        run: |
-          poetry config pypi-token.pypi $PYPI_TOKEN
-          poetry publish
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
