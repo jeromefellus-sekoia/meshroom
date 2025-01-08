@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "meshroom"
 version = "0.1.0"
-description = ""
-authors = ["Jerome Fellus <jerome.fellus@sekoia.fr>"]
+description = "a commandline Cybersecurity Mesh Assistant"
+authors = ["Jerome Fellus <jerome.fellus@sekoia.io>"]
 packages = [{include = "meshroom"}]
 readme = "README.md"
 
