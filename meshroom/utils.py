@@ -2,11 +2,11 @@ import os
 from pathlib import Path
 import shutil
 import sys
-import tomli
 import importlib.util
 from typing import Iterable
 from pydantic import BaseModel
 from tabulate import tabulate as _tabulate
+from importlib.metadata import version
 
 ROOT_DIR = Path(__file__).resolve().parent
 UI_DIR = ROOT_DIR / ".." / "dist"
@@ -21,17 +21,7 @@ def read_file(directory: str, filename: str) -> str:
         return ""
 
 
-def read_toml(filename: Path) -> dict:
-    """Read a TOML file's content or return empty dict"""
-    try:
-        with open(filename.resolve().as_posix(), "rb") as f:
-            return tomli.load(f)
-    except Exception as e:
-        print(e)
-        return {}
-
-
-VERSION = read_toml(ROOT_DIR / "../pyproject.toml").get("tool", {}).get("poetry", {}).get("version", "0.0.0")
+VERSION = version("meshroom")
 
 
 def tabulate(
