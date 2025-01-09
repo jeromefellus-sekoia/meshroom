@@ -1,10 +1,8 @@
 import os
 from pathlib import Path
-import re
 import shutil
-from subprocess import check_call
 import sys
-import tomllib
+import tomli
 import importlib.util
 from typing import Iterable
 from pydantic import BaseModel
@@ -27,7 +25,7 @@ def read_toml(directory: Path, filename: str) -> dict:
     """Read a TOML file's content or return empty dict"""
     try:
         with open(directory / filename) as f:
-            return tomllib.load(f)
+            return tomli.load(f)
     except Exception:
         return {}
 
