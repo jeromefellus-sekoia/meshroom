@@ -20,11 +20,26 @@ cd <path>
 
 This has scaffolded a local git repo with two directories: `products` and `instances`
 
+We can list list our Products and Instances using
+```bash
+meshroom list products
+meshroom list instances
+```
+which confirms we have no products and no instances yet.
+
 ### 1. Gather knowledge about existing products
 
 In Meshroom's spirit, users may have already shared products definitions via, say, github.com, so you can browse public shared meshroom repos for products of interest to build your mesh.
 
-Imagine we want to incorporate a Sekoia.io SOC platform tenant into our mesh. We can leverage existing definitions from [https://github.com/jeromefellus-sekoia/meshroom/tree/master/example/products/sekoia](https://github.com/jeromefellus-sekoia/meshroom/tree/master/example/products/sekoia), by simply copying the subdirectory to our project's `products/` folder.
+Imagine we want to incorporate a Sekoia.io SOC platform tenant into our mesh. We can leverage existing definitions from [https://github.com/jeromefellus-sekoia/meshroom/tree/master/example/products/sekoia](https://github.com/jeromefellus-sekoia/meshroom/tree/master/example/products/sekoia), by simply copying the subdirectory to our project's `products/` folder:
+
+```bash
+mkdir -p tmp
+curl -L -o tmp.tar.gz https://github.com/jeromefellus-sekoia/meshroom/tarball/master
+tar -xzf tmp.tar.gz -C tmp
+mv tmp/*/example/products/sekoia products/sekoia
+rm -rf tmp
+```
 
 Happily, the sekoia product contains `@pull` hooks, allowing us to gather from Sekoia's official catalog the whole set of integrations available between Sekoia.io and 3rd-party products (here, so-called intake formats and playbook actions). Calling
 
@@ -34,6 +49,11 @@ meshroom pull sekoia
 
 yields dozen of new products along with their own capabilities to the extent of what Sekoia.io can interop with. You'd probably need to gather and pull more product knowledge to enrich those 3rd-party product definitions and reach a sufficiently large and accurate capabilities graph to start instantiating a mesh from it.
 
+```bash
+meshroom list products
+```
+
+now shows many products available for instanciation.
 
 ### 2. Integrate your product
 
@@ -118,6 +138,12 @@ We thus demonstrated the basic concepts of:
 * product and integration manifests with settings
 * how settings and secrets get prompted at `meshroom add` and `meshroom plug`. Note that you can (re-)configure those settings using `meshroom configure`, *e.g.*, when you'll instantiate your mesh on a different information system
 
+We can confirm the existence of our new product and integrations via
+```bash
+meshroom list products mye
+meshroom list integrations myedr
+```
+
 ### 3. Create a mesh
 
 We'll create a basic mesh of 2 Instances:
@@ -147,6 +173,12 @@ Let's fix that
 meshroom create integration sekoia myedr search_threat trigger --mode=push
 ```
 
+and confirm it worked
+
+```bash
+meshroom list integrations --target-product myedr
+```
+
 Contrarily to the previous call to `meshroom create integration`, this has created many files under the `products/sekoia/integrations/myedr/` folder, where we may recognize an almost complete Sekoia.io custom playbook action as one can find examples at [https://github.com/SEKOIA-IO/automation-library](https://github.com/SEKOIA-IO/automation-library). This integration has been automatically scaffolded because Sekoia.io's vendor has defined a `@scaffold` hook for this kind of trigger. This hook generated all the boilerplate code required to build a custom playbook action that will trigger executions on 3rd-party APIs. All we need to do is to actually implement the TODOs left in the boilerplate. We won't cover this specific business here, but once you've coded your own logic, you can call again
 
 ```bash
@@ -154,6 +186,12 @@ meshroom plug mysekoia myedr search_threat
 ```
 
 which should now succeed !
+
+```bash
+meshroom list instances
+meshroom list plugs
+```
+should then show 2 instances and 1 plug connecting them.
 
 We're done with the mesh creation part of this tutorial, it's now time to give it life...
 
@@ -165,7 +203,7 @@ Once you get a valid and satisfactory mesh of Instances and Plugs, you're ready 
 meshroom up
 ```
 
-As for a docker compose stack, this command should be enough to setup and configure all your tenants, and connect the required interops to make them communicate according to the mesh's graph. Sometimes, `meshroom up` will prompt for additional settings and secret required for the runtime.
+As for a docker compose stack, this command should be enough to setup and configure all your tenants, and connect the required interops to make them communicate according to the mesh's graph. Sometimes, `meshroom up` will prompt for additional settings and secret required for the runtime. Another similary with docker compose or terraform stacks is that `meshroom up` is idempotent: if the mesh is already up, meshroom will tell you resources are already up. If only part of them are up, meshroom will setup those who are down, *etc*.
 
 To check everything works as expected, we can use two handy commands :
 
