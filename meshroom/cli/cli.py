@@ -2,7 +2,7 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from meshroom.interaction import debug, info, error
-from meshroom.utils import tabulate
+from meshroom.utils import VERSION, tabulate
 from meshroom.model import Mode, Plug, ProductSetting, Role, Instance
 import click
 from meshroom import model
@@ -34,10 +34,15 @@ def autocomplete(func):
 # Commands
 
 
-@click.group()
+@click.group(invoke_without_command=True)
 @click.option("-p", "--path", default=".", help="Path to the meshroom project directory")
-def meshroom(path):
+@click.option("-v", "--version", is_flag=True, help="Show the version of Meshroom")
+def meshroom(path, version):
     """Meshroom - The Cybersecurity Mesh Assistant"""
+    if version:
+        print(VERSION)
+        exit(0)
+
     model.set_project_dir(path)
 
     # skip validation for init command

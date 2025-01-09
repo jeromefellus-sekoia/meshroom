@@ -8,7 +8,7 @@ from typing import Iterable
 from pydantic import BaseModel
 from tabulate import tabulate as _tabulate
 
-ROOT_DIR = Path(os.path.dirname(__file__))
+ROOT_DIR = Path(__file__).resolve().parent
 UI_DIR = ROOT_DIR / ".." / "dist"
 
 
@@ -21,16 +21,17 @@ def read_file(directory: str, filename: str) -> str:
         return ""
 
 
-def read_toml(directory: Path, filename: str) -> dict:
+def read_toml(filename: Path) -> dict:
     """Read a TOML file's content or return empty dict"""
     try:
-        with open(directory / filename) as f:
+        with open(filename.resolve().as_posix(), "rb") as f:
             return tomli.load(f)
-    except Exception:
+    except Exception as e:
+        print(e)
         return {}
 
 
-VERSION = read_toml(ROOT_DIR / "..", "pyproject.toml").get("version", "0.0.0")
+VERSION = read_toml(ROOT_DIR / "../pyproject.toml").get("tool", {}).get("poetry", {}).get("version", "0.0.0")
 
 
 def tabulate(
