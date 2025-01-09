@@ -18,6 +18,7 @@ def generate_files_from_template(
 
         # Generate directories (including empty ones)
         if fn.is_dir():
+            log("    Generate directory", dst_file)
             dst_file.mkdir(parents=True, exist_ok=True)
             continue
 
