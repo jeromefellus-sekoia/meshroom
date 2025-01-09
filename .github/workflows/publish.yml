@@ -1,8 +1,9 @@
 name: Publish to PyPI
 on:
-  release:
+  workflow_run:
+    workflows: ["Test & release master"]
     types:
-      - created
+      - completed
 
 jobs:
   build-and-publish:
