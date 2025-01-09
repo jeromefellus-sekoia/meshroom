@@ -6,15 +6,18 @@ release:
 
 major:
 	git checkout master
+	git pull
 	poetry version major
 	$(MAKE) release
 
 minor:
 	git checkout master
+	git pull
 	poetry version minor
 	$(MAKE) release
 
 patch:
 	git checkout master
+	git pull
 	poetry version patch
 	$(MAKE) release
