@@ -1,5 +1,6 @@
 release:
-	@VERSION=$$(poetry version -s); git tag -a v$${VERSION} -m "meshroom v$${VERSION}" && git push origin v$${VERSION}
+	@VERSION=$$(poetry version -s); git tag -a v$${VERSION} -m "meshroom v$${VERSION}"; git push origin v$${VERSION}; \
+	gh release create "v$${VERSION}" --title "meshroom v$${VERSION}" --generate-notes
 
 major:
 	git checkout master
