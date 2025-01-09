@@ -19,8 +19,10 @@ settings:
   - name: API_URL
 
 produces:
-  events: {}
-  alerts: {}
+  events:
+    - {}
+  alerts:
+    - {}
 
 executes:
   # OpenC2 actuator profile (see https://github.com/oasis-tcs/openc2-ap-er/blob/working/oc2edr.md)

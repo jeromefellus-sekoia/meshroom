@@ -95,7 +95,7 @@ Let's assume that while the CTI production and consumption APIs are builtin in m
 * Create the `products/myedr/search_threat.py` file containing
 
 ```py
-from meshroom.decorators import setup
+from meshroom.decorators import setup_executor
 from meshroom.model import Integration, Plug, Instance
 
 @setup_executor("search_threat")
