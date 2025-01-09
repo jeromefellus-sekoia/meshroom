@@ -7,7 +7,7 @@ packages = [{include = "meshroom"}]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.10"
 websockets = "^13.0.1"
 tomli = "^2.2.1"
 click = "^8.1.7"
