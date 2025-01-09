@@ -103,7 +103,7 @@
 <ul>
 <li>integrating a dummy product in a meshroom project's capabilities graph</li>
 <li>instantiating a mesh</li>
-<li>setting up this mesh against real product tenants</li>
+<li>setting up this mesh with real product tenants</li>
 <li>playing and inspect data flowing through it</li>
 </ul>
 <p>We take an hypothetical intelligence-driven EDR called "myedr" as the examplar product to showcase the Meshroom CLI and underlying concepts.</p>
@@ -114,7 +114,7 @@ cd &lt;path&gt;
 </code></pre>
 <p>This has scaffolded a local git repo with two directories: <code>products</code> and <code>instances</code></p>
 <h3 id="1-gather-knowledge-about-existing-products">1. Gather knowledge about existing products</h3>
-<p>In Meshroom's spirit, users may have already shared products definitions via, say, github.com, so you can browse publicly shared meshroom repos for products of interest to build your mesh.</p>
+<p>In Meshroom's spirit, users may have already shared products definitions via, say, github.com, so you can browse public shared meshroom repos for products of interest to build your mesh.</p>
 <p>Imagine we want to incorporate a Sekoia.io SOC platform tenant into our mesh. We can leverage existing definitions from <a href="https://github.com/jeromefellus-sekoia/meshroom/tree/master/example/products/sekoia">https://github.com/jeromefellus-sekoia/meshroom/tree/master/example/products/sekoia</a>, by simply copying the subdirectory to our project's <code>products/</code> folder.</p>
 <p>Happily, the sekoia product contains <code>@pull</code> hooks, allowing us to gather from Sekoia's official catalog the whole set of integrations available between Sekoia.io and 3rd-party products (here, so-called intake formats and playbook actions). Calling</p>
 <pre><code class="language-bash">meshroom pull sekoia
