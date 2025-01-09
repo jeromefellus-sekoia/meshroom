@@ -3,9 +3,8 @@ name: Test & release master
 
 on:
   push:
-    branches:
-      - master
-
+    tags:
+      - 'v*'
 jobs:
   test:
     uses: ./.github/workflows/pytest.yml
@@ -33,12 +32,6 @@ jobs:
         id: get_version
         run: echo "VERSION=$(poetry version -s)" >> $GITHUB_OUTPUT
 
-      - name: Create and push tag
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git tag v${{ steps.get_version.outputs.VERSION }}
-          git push -f origin v${{ steps.get_version.outputs.VERSION }}
       - name: Create or Update Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
