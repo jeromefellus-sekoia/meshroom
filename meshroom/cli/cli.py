@@ -37,7 +37,7 @@ def autocomplete(func):
 @click.group()
 @click.option("-p", "--path", default=".", help="Path to the meshroom project directory")
 def meshroom(path):
-    """Meshroom - The composable SOC assistant"""
+    """Meshroom - The Cybersecurity Mesh Assistant"""
     model.set_project_dir(path)
 
     # skip validation for init command
