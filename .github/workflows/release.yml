@@ -1,18 +1,14 @@
 
-name: Test & release master
+name: Release
 
 on:
   push:
     tags:
       - 'v*'
 jobs:
-  test:
-    uses: ./.github/workflows/pytest.yml
-
   release:
     name: Release
     runs-on: ubuntu-latest
-    needs: test
 
     permissions:
       contents: write
