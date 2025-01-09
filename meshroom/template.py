@@ -14,11 +14,11 @@ def generate_files_from_template(
     """Generate files from a directory of template, replacing placeholders"""
     log("\nGenerate files from template", template_dir, "to", dst_dir)
     dst_dir.mkdir(parents=True, exist_ok=True)
-    for fn in template_dir.rglob("*.*"):
+    for fn in template_dir.rglob("*"):
         dst_file = dst_dir / fn.relative_to(template_dir)
 
         # Generate directories (including empty ones)
-        if dst_file.is_dir():
+        if fn.is_dir():
             dst_file.mkdir(parents=True, exist_ok=True)
             continue
 
