@@ -2,7 +2,8 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from meshroom.interaction import debug, info, error
-from meshroom.utils import VERSION, tabulate
+from meshroom.utils import tabulate
+from meshroom import __version__
 from meshroom.model import Mode, Plug, ProductSetting, Role, Instance
 import click
 from meshroom import model
@@ -40,7 +41,7 @@ def autocomplete(func):
 def meshroom(path, version):
     """Meshroom - The Cybersecurity Mesh Assistant"""
     if version:
-        print(VERSION)
+        print(__version__)
         exit(0)
 
     model.set_project_dir(path)

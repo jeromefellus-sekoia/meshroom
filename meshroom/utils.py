@@ -6,7 +6,6 @@ import importlib.util
 from typing import Iterable
 from pydantic import BaseModel
 from tabulate import tabulate as _tabulate
-from importlib.metadata import version
 
 ROOT_DIR = Path(__file__).resolve().parent
 UI_DIR = ROOT_DIR / ".." / "dist"
@@ -19,9 +18,6 @@ def read_file(directory: str, filename: str) -> str:
             return f.read()
     except Exception:
         return ""
-
-
-VERSION = version("meshroom")
 
 
 def tabulate(
