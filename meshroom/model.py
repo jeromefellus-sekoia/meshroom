@@ -1062,6 +1062,10 @@ def init_project(path: str | Path, git: bool | str = True):
         PROJECT_DIR,
         {"{{NAME}}": path.name},
     )
+
+    (PROJECT_DIR / "products").mkdir(parents=True, exist_ok=True)
+    (PROJECT_DIR / "instances").mkdir(parents=True, exist_ok=True)
+
     Git().init(remote=git or None)
     info(f"✓ Meshroom project initialized at {PROJECT_DIR.absolute()}")
     return True
