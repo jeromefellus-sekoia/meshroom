@@ -252,6 +252,26 @@ files = [
 ]
 
 [[package]]
+name = "passpy"
+version = "1.0.2"
+description = "ZX2C4's pass compatible Python library and cli"
+optional = false
+python-versions = ">=3.3"
+files = [
+    {file = "passpy-1.0.2-py3-none-any.whl", hash = "sha256:c28958cb50c8a9a4bc28a7be2ed1819ce1d4e22f77f5dfdde1a1b28882d8c956"},
+    {file = "passpy-1.0.2.tar.gz", hash = "sha256:fe758c2022213034be2dbf0fab4a1e41fd0f9aeb0582da2f936cd105162027a9"},
+]
+
+[package.dependencies]
+click = ">=2.0"
+GitPython = ">=1.0.1"
+pyperclip = ">=1.5"
+python-gnupg = ">=0.3.8"
+
+[package.extras]
+color = ["colorama (>=0.3)"]
+
+[[package]]
 name = "pluggy"
 version = "1.5.0"
 description = "plugin and hook calling mechanisms for python"
@@ -399,6 +419,16 @@ files = [
 typing-extensions = ">=4.6.0,<4.7.0 || >4.7.0"
 
 [[package]]
+name = "pyperclip"
+version = "1.9.0"
+description = "A cross-platform clipboard module for Python. (Only handles plain text for now.)"
+optional = false
+python-versions = "*"
+files = [
+    {file = "pyperclip-1.9.0.tar.gz", hash = "sha256:b7de0142ddc81bfc5c7507eea19da920b92252b548b96186caf94a5e2527d310"},
+]
+
+[[package]]
 name = "pytest"
 version = "8.3.4"
 description = "pytest: simple powerful testing with Python"
@@ -419,6 +449,17 @@ tomli = {version = ">=1", markers = "python_version < \"3.11\""}
 
 [package.extras]
 dev = ["argcomplete", "attrs (>=19.2)", "hypothesis (>=3.56)", "mock", "pygments (>=2.7.2)", "requests", "setuptools", "xmlschema"]
+
+[[package]]
+name = "python-gnupg"
+version = "0.5.4"
+description = "A wrapper for the Gnu Privacy Guard (GPG or GnuPG)"
+optional = false
+python-versions = "*"
+files = [
+    {file = "python-gnupg-0.5.4.tar.gz", hash = "sha256:f2fdb5fb29615c77c2743e1cb3d9314353a6e87b10c37d238d91ae1c6feae086"},
+    {file = "python_gnupg-0.5.4-py2.py3-none-any.whl", hash = "sha256:40ce25cde9df29af91fe931ce9df3ce544e14a37f62b13ca878c897217b2de6c"},
+]
 
 [[package]]
 name = "pyyaml"
@@ -722,4 +763,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "8576e709131dae8147c600c06fe31298e67c4d5f8f159665bb1b847614fc372f"
+content-hash = "e37f1ac02a3755f5093016532cddfcf663a04358fbecd954d2f797491ac2ea80"
