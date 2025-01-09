@@ -20,7 +20,6 @@ def generate_files_from_template(
         # Generate directories (including empty ones)
         if fn.is_dir():
             dst_file.mkdir(parents=True, exist_ok=True)
-            print(dst_file)
             continue
 
         if not fn.is_file():
