@@ -1,3 +1,5 @@
+[logo](docs/logo.svg)
+
 # Meshroom, the Cybersecurity Mesh Assistant
 
 A command-line tool to build and manage Cybersecurity Mesh Architectures (CSMA), initiated by the OXA project.

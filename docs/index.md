@@ -11,7 +11,7 @@ It then means :
 - Leveraging Open APIs to make your products communicate and interact eachother
 - Exploiting products' extensibility via plugins and open-source components to encourage user-defined interoperability
 
-## Users
+## Audience
 
 ### As a vendor : fight the N-to-N integration curse
 

@@ -26,7 +26,7 @@ Sensitive data, like API keys and other secrets used to teleoperate the Instance
 
 ## Project
 
-A Meshroom Project is a git-backed local directory on your computer, based on a file structure. Meshroom CLI handles this structure (see [Meshroom project structure](#meshroom-project-structure)).
+A Meshroom Project is a git-backed local directory on your computer, based on a file structure. Meshroom CLI handles this structure (see [Meshroom project structure](#wrap-up-with-meshroom-project-structure)).
 
 You can start a new meshroom project via `meshroom init <path>`. This will setup a new local git repo and few minimal files in this directory so that you can start building your integrations and mesh architecture. You can then directly add a git remote via `git remote add <remote> <remote_url>` such as a GitHub repository to save, share and publish your project via `git push`, and use the directory as a classical Git repository.
 
