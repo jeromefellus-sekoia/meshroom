@@ -1,4 +1,6 @@
+<p align="center">
 <img src="docs/logo.svg" width=100>
+</p>
 
 # Meshroom, the Cybersecurity Mesh Assistant
 
