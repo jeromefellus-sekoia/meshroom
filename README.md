@@ -4,7 +4,7 @@
 
 # Meshroom, the Cybersecurity Mesh Assistant
 ![release](https://img.shields.io/github/v/release/jeromefellus-sekoia/meshroom)
-![tests](https://img.shields.io/github/checks-status/jeromefellus-sekoia/meshroom/master?label=tests)
+![build](https://img.shields.io/github/actions/workflow/status/jeromefellus-sekoia/meshroom/pytest.yml?branch=master)
 ![MIT license](https://img.shields.io/github/license/jeromefellus-sekoia/meshroom)
 [![Python 3.10](https://img.shields.io/badge/python-3.10-blue.svg)](https://www.python.org/downloads/release/python-3100/)
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/)
