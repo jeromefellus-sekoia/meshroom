@@ -1,3 +1,4 @@
+#!/bin/bash
 # E2E Test to validate the docs/tutorial.md works as expected
 
 cd $(dirname $0)/../..
@@ -47,6 +48,9 @@ produces:
    threats:
       - format: stix
         mode: pull
+   events:
+      - format: json
+        mode: push
 executes:
    search_threat:
       - {}
