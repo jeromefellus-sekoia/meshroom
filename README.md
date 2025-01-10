@@ -1,4 +1,4 @@
-![logo](docs/logo.svg | width=100)
+<img src="docs/logo.svg" width=100>
 
 # Meshroom, the Cybersecurity Mesh Assistant
 
