@@ -1,4 +1,4 @@
-[logo](docs/logo.svg)
+![logo](docs/logo.svg)
 
 # Meshroom, the Cybersecurity Mesh Assistant
 
