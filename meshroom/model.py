@@ -13,7 +13,7 @@ import shutil
 from meshroom import interaction, secrets
 from meshroom.ast import AST
 from meshroom.template import generate_files_from_template
-from meshroom.utils import import_module, list_functions_from_module
+from meshroom.utils import import_module
 from meshroom.interaction import debug, info, log, error
 
 Role = Literal["consumer", "producer", "trigger", "executor"]
@@ -166,7 +166,7 @@ class Product(Model):
         getattr(self, field)[topic].append(Cap(mode=mode, format=format))
         return self
 
-    def add_setup_step(
+    def add_setup_hook(
         self,
         role: Role,
         title: str,
@@ -176,7 +176,7 @@ class Product(Model):
         order: str | None = None,
     ):
         """
-        Append a generic setup step to the product's setup.py
+        Generate a generic setup step to the product's setup.py
         to setup a consumer for the given topic
         """
         import meshroom.decorators
@@ -199,7 +199,7 @@ class Product(Model):
         ast.save()
         return self
 
-    def add_teardown_step(
+    def add_teardown_hook(
         self,
         role: Role,
         title: str,
@@ -209,7 +209,7 @@ class Product(Model):
         order: str | None = None,
     ):
         """
-        Append a generic teardown step to the product's setup.py
+        Generate a generic teardown step to the product's setup.py
         to teardown a consumer for the given topic
         """
         import meshroom.decorators
@@ -231,16 +231,6 @@ class Product(Model):
             )
         ast.save()
         return self
-
-    def list_pull_handlers(self):
-        """
-        List the pull handlers for this product, as found in its ./pull.py module
-        pull handlers are all functions in the module whose name starts with "pull_"
-        """
-        return list_functions_from_module(
-            self.path / "pull.py",
-            startswith="pull_",
-        )
 
     def list_capabilities(self, role: Role | None = None, topic: str | None = None, format: str | None = None, mode: Mode | None = None):
         """
@@ -265,7 +255,7 @@ class Product(Model):
                     if (not topic or topic == t) and (not format or format == c.format or c.format is None) and (not mode or mode == c.mode):
                         out.add(Capability(topic=t, role=r, mode=c.mode, format=c.format))
 
-        # Collect capabilities declared in decorated hooks
+        # Collect capabilities declared in setup hooks
         self.import_python_modules()
         for sf in Hook.get_all("setup"):
             if sf.product == self.name and sf.target_product is None:
@@ -297,15 +287,14 @@ class Product(Model):
 
     def pull(self):
         """
-        Pull the product's SDK resources from its ./pull.py definitions
-        pull handlers are all functions in the module whose name starts with "pull_"
+        Pull the product's integration catalog using @pull hooks
         """
         (PROJECT_DIR / "mirrors" / self.name).mkdir(parents=True, exist_ok=True)
-        if funcs := self.list_pull_handlers():
+        if funcs := self.get_hooks("pull"):
             for f in funcs:
-                info(f"- Pull {self.name} via {f.__name__}")
+                info(f"- Pull {self.name} via {f.get_title()}")
                 try:
-                    f(path=PROJECT_DIR / "mirrors" / self.name)
+                    f.func(path=PROJECT_DIR / "mirrors" / self.name)
                 except Exception:
                     logging.error("Pull failed :", exc_info=True)
                 print()
@@ -321,7 +310,7 @@ class Product(Model):
 
     def get_hooks(
         self,
-        type: Literal["setup", "teardown", "scaffold", "watch"] | None = None,
+        type: Literal["setup", "teardown", "scaffold", "watch", "pull"] | None = None,
         topic: str | None = None,
         mode: Mode | None = None,
         role: Role | None = None,
@@ -817,7 +806,7 @@ class Plug(Model):
         config = {}
         with open(filepath) as f:
             config = yaml.safe_load(f)
-        if "_" in filepath.stem:
+        if filepath.stem.endswith("_pull") or filepath.stem.endswith("_push"):
             topic, mode = filepath.stem.rsplit("_", maxsplit=1)
         else:
             mode = "push"
@@ -1208,15 +1197,15 @@ def plug(src_instance: str, dst_instance: str, topic: str, mode: Mode | None = N
 
         raise ValueError(f"""❌ No integration between {dst_instance} ({dst.product}) and {src_instance} ({src.product}) for topic {topic} (mode={mode}) is implemented
 
-    Consumers found: {consumers or 'None'}
-    Producers found: {producers or 'None'}
-    Triggers found: {triggers or 'None'}
-    Executors found: {executors or 'None'}
+    Consumers found: {consumers or "None"}
+    Producers found: {producers or "None"}
+    Triggers found: {triggers or "None"}
+    Executors found: {executors or "None"}
 
     You may want to scaffold one via
 
-    meshroom create integration {src.product} {dst.product} {topic} producer {f'--format {format} ' if format else ''}{f'--mode {mode} ' if mode not in (None, 'push') else ''}
-    meshroom create integration {dst.product} {src.product} {topic} consumer {f'--format {format} ' if format else ''}{f'--mode {mode} ' if mode not in (None, 'push') else ''}
+    meshroom create integration {src.product} {dst.product} {topic} producer {f"--format {format} " if format else ""}{f"--mode {mode} " if mode not in (None, "push") else ""}
+    meshroom create integration {dst.product} {src.product} {topic} consumer {f"--format {format} " if format else ""}{f"--mode {mode} " if mode not in (None, "push") else ""}
 """)
 
 

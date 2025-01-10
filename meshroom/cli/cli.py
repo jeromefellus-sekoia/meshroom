@@ -351,14 +351,14 @@ def remove(
 
 
 @meshroom.command()
+@click.argument("topic")
 @click.argument("src_instance", shell_complete=autocomplete_search(model.list_instances))
 @click.argument("dst_instance", shell_complete=autocomplete_search(model.list_instances))
-@click.argument("topic")
 @click.option("--mode", type=click.Choice(Mode.__args__))
 def unplug(
+    topic: str,
     src_instance: str,
     dst_instance: str,
-    topic: str,
     mode: Mode | None = None,
 ):
     """Disconnect an existing Plug between two Instances"""
@@ -400,6 +400,10 @@ def produce(
 ):
     """Produce data through a Plug or to a Instance"""
     try:
+        if dst_instance:
+            model.get_plug(instance, dst_instance, topic, mode)
+        else:
+            model.get_instance(instance)
         debug("Waiting for events on standard input...\n")
         for line in sys.stdin:
             print(model.produce(instance, dst_instance, topic, data=line.strip(), mode=mode))
@@ -423,6 +427,10 @@ def execute(
 ):
     """Execute an executor exposed by a Plug's or a Instance's topic"""
     try:
+        if dst_instance:
+            model.get_plug(instance, dst_instance, topic, mode)
+        else:
+            model.get_instance(instance)
         print(
             model.execute(
                 instance,

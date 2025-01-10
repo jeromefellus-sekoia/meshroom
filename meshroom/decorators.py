@@ -425,6 +425,22 @@ def publish(topic: str | None = None, role: Role | None = None, mode: Mode | Non
     return decorator
 
 
+def pull(title: str | None = None, order: HookOrder | None = None):
+    """
+    Decorator to declare a function as pull a product's integrations catalog
+    """
+
+    def decorator(func: Callable):
+        func_file = Path(inspect.getfile(func))
+        if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
+            raise ValueError("pull() decorator can't be used outside of a Product's directory")
+
+        Hook.add(product.name, None, None, None, None, func, True, order, title, "pull", None)
+        return func
+
+    return decorator
+
+
 def scaffold_consumer(
     topic: str | None = None,
     mode: Mode | None = None,

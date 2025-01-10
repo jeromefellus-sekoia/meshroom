@@ -4,10 +4,12 @@ import re
 from meshroom.model import Integration, Plug, ProductSetting, create_product, get_integration, get_product
 from meshroom.utils import overwrite_directory
 from meshroom.git import Git
+from meshroom.decorators import pull
 from meshroom.interaction import info
 import yaml
 
 
+@pull(order=0)
 def pull_automation_library(path: Path):
     """Pull automation library from Sekoia's public automation-library repo"""
     sekoia = get_product("sekoia")
@@ -73,6 +75,7 @@ def get_automation_connector_by_uuid(repo: Path, module_uuid: str, uuid: str) ->
     return None
 
 
+@pull(order=1)
 def pull_intake_formats(path: Path):
     """Pull intake formats from Sekoia's public intakes repo"""
     path = path / "intake-formats"

@@ -38,7 +38,7 @@ mkdir -p tmp
 curl -L -o tmp.tar.gz https://github.com/jeromefellus-sekoia/meshroom/tarball/master
 tar -xzf tmp.tar.gz -C tmp
 mv tmp/*/example/products/sekoia products/sekoia
-rm -rf tmp
+rm -rf tmp tmp.tar.gz
 ```
 
 Happily, the sekoia product contains `@pull` hooks, allowing us to gather from Sekoia's official catalog the whole set of integrations available between Sekoia.io and 3rd-party products (here, so-called intake formats and playbook actions). Calling
@@ -100,7 +100,7 @@ from meshroom.model import Integration, Plug, Instance
 
 @setup_executor("search_threat")
 def setup_threat_search_api_via_myedr_plugin(integration: Integration, plug: Plug, instance: Instance):
-    some_value = instance.some_setting
+    some_value = instance.settings.get("some_setting")
     some_secret = plug.get_secret("SOME_SECRET")
     api_key = instance.get_secret("API_KEY")
     raise NotImplementedError("Implement the setup mechanism here")
@@ -127,7 +127,7 @@ We may also require settings specific for myedr to interop with a particular 3rd
 Let's create a suitable Integration for that:
 
 ```bash
-meshroom create integration myedr sekoia executor search_threat
+meshroom create integration myedr sekoia search_threat executor
 ```
 
 This created a `search_threat_executor.yaml` manifest under `products/myedr/integrations/sekoia/` to hold the integration-specific settings, in the same way we did at Product level. We can then add a `settings:` section akin to the Product's one. Upon `meshroom plug some_sekoia_instance some_myedr_instance search_threat`, because myedr has defined specific settings for the executor end of this Plug, the user we'll be prompted for necessary values.
@@ -176,7 +176,7 @@ meshroom create integration sekoia myedr search_threat trigger --mode=push
 and confirm it worked
 
 ```bash
-meshroom list integrations --target-product myedr
+meshroom list integrations sekoia myedr
 ```
 
 Contrarily to the previous call to `meshroom create integration`, this has created many files under the `products/sekoia/integrations/myedr/` folder, where we may recognize an almost complete Sekoia.io custom playbook action as one can find examples at [https://github.com/SEKOIA-IO/automation-library](https://github.com/SEKOIA-IO/automation-library). This integration has been automatically scaffolded because Sekoia.io's vendor has defined a `@scaffold` hook for this kind of trigger. This hook generated all the boilerplate code required to build a custom playbook action that will trigger executions on 3rd-party APIs. All we need to do is to actually implement the TODOs left in the boilerplate. We won't cover this specific business here, but once you've coded your own logic, you can call again
@@ -208,13 +208,13 @@ As for a docker compose stack, this command should be enough to setup and config
 To check everything works as expected, we can use two handy commands :
 
 ```bash
-meshroom produce myedr mysekoia events
+meshroom produce events myedr mysekoia
 ```
 
 and
 
 ```bash
-meshroom watch myedr mysekoia events
+meshroom watch events myedr mysekoia
 ```
 
 The first one will read lines from standard input and send them through `myedr-[events]->mysekoia`'s plug, so that mysekoia can consume some test events.
@@ -256,7 +256,7 @@ and you should get a Github PR to [https://github.com/SEKOIA-IO/automation-libra
 
 By the way, you can also play the trigger from command line via
 ```bash
-meshroom trigger mysekoia myedr search_threats -p <param>=<value> ...
+meshroom trigger search_threats mysekoia myedr -p <param>=<value> ...
 ```
 to test the trigger/executor relationship, as long as the vendor has defined a `@trigger` hook for the topic (or a generic one of course, which is the case for sekoia.io playbook actions).
 

@@ -95,12 +95,6 @@ def import_module(path: Path | str, package_dir: Path | str | None = ""):
     return None
 
 
-def list_functions_from_module(path: Path | str, startswith: str = ""):
-    if module := import_module(path):
-        return [getattr(module, func) for func in dir(module) if (not startswith or func.startswith("pull_")) and callable(getattr(module, func))]
-    return []
-
-
 def overwrite_directory(src_dir: Path | str, dst_dir: Path | str):
     """Force-copy the :src_dir to the :dst_dir, removing all existing files in the :dst_dir"""
     dst_dir = Path(dst_dir)

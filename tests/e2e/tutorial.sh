@@ -33,6 +33,8 @@ meshroom list products
 
 ### 2. Integrate your product
 
+rm -rf products/myedr
+
 # This tutorial assumes we're a vendor of a new product that didn't get a meshroom definition yet. So let's create it from scratch, or better, using one of the provided product capabilities templates, found under [https://github.com/jeromefellus-sekoia/meshroom/tree/master/meshroom/templates/products](https://github.com/jeromefellus-sekoia/meshroom/tree/master/meshroom/templates/products)
 meshroom create product myedr --from edr
 
@@ -57,7 +59,7 @@ from meshroom.model import Integration, Plug, Instance
 
 @setup_executor("search_threat")
 def setup_threat_search_api_via_myedr_plugin(integration: Integration, plug: Plug, instance: Instance):
-    some_value = instance.some_setting
+    some_value = instance.settings.get("some_setting")
     some_secret = plug.get_secret("SOME_SECRET")
     api_key = instance.get_secret("API_KEY")
     raise NotImplementedError("Implement the setup mechanism here")
@@ -82,8 +84,8 @@ meshroom list integrations myedr
 
 ### 3. Create a mesh
 
-echo "plop" | meshroom add sekoia mysekoia
-meshroom add myedr
+echo "plop" | meshroom add sekoia mysekoia -s API_KEY
+echo "plop" | meshroom add myedr -s API_KEY
 
 # Now, let's **plug** both products, so that mysekoia can consume myedr's events and myedr can execute mysekoia's queries for threat searches.
 
@@ -95,7 +97,7 @@ meshroom plug mysekoia myedr search_threat
 meshroom create integration sekoia myedr search_threat trigger --mode=push
 
 # and confirm it worked
-meshroom list integrations --target-product myedr
+meshroom list integrations sekoia myedr
 
 # Contrarily to the previous call to `meshroom create integration`, this has created many files under the `products/sekoia/integrations/myedr/` folder, where we may recognize an almost complete Sekoia.io custom playbook action as one can find examples at [https://github.com/SEKOIA-IO/automation-library](https://github.com/SEKOIA-IO/automation-library). This integration has been automatically scaffolded because Sekoia.io's vendor has defined a `@scaffold` hook for this kind of trigger. This hook generated all the boilerplate code required to build a custom playbook action that will trigger executions on 3rd-party APIs. All we need to do is to actually implement the TODOs left in the boilerplate. We won't cover this specific business here, but once you've coded your own logic, you can call again
 meshroom plug mysekoia myedr search_threat
@@ -112,8 +114,8 @@ meshroom list plugs
 meshroom up
 
 # To check everything works as expected, we can use two handy commands :
-meshroom produce myedr mysekoia events
-meshroom watch myedr mysekoia events
+meshroom produce events myedr mysekoia
+meshroom watch events myedr mysekoia
 
 ### 5. Meshroom down
 
@@ -124,4 +126,4 @@ meshroom down
 meshroom publish sekoia myedr search_threats
 
 # By the way, you can also play the trigger from command line via
-meshroom trigger mysekoia myedr search_threats
+meshroom trigger search_threats mysekoia myedr
