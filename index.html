@@ -31,7 +31,8 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
-          <a href="." class="icon icon-home"> Meshroom
+          <a href=".">
+          <img src="logo-title.svg" class="logo" alt="Logo"/>
         </a><div role="search">
   <form id ="rtd-search-form" class="wy-form" action="./search.html" method="get">
       <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
@@ -45,7 +46,7 @@
     <ul class="current">
     <li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#users">Users</a>
+    <li class="toctree-l2"><a class="reference internal" href="#audience">Audience</a>
         <ul>
     <li class="toctree-l3"><a class="reference internal" href="#as-a-vendor-fight-the-n-to-n-integration-curse">As a vendor : fight the N-to-N integration curse</a>
     </li>
@@ -63,12 +64,42 @@
                 </li>
               </ul>
               <ul>
+                <li class="toctree-l1"><a class="reference internal" href="create_product/">meshroom create product</a>
+                </li>
+              </ul>
+              <ul>
                 <li class="toctree-l1"><a class="reference internal" href="tutorial/">Tutorial</a>
                 </li>
               </ul>
               <p class="caption"><span class="caption-text">Commands</span></p>
               <ul>
-                  <li class="toctree-l1"><a class="reference internal" href="commands/create_product/">meshroom create product</a>
+                  <li class="toctree-l1"><a class="reference internal" href="commands/add/">meshroom add</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="commands/configure/">meshroom configure</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="commands/create_integration/">meshroom create integration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="commands/down/">meshroom down</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="commands/execute/">meshroom execute</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="commands/init/">meshroom init</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="commands/produce/">meshroom produce</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="commands/publish/">meshroom publish</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="commands/pull/">meshroom pull</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="commands/remove/">meshroom remove</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="commands/trigger/">meshroom trigger</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="commands/unplug/">meshroom unplug</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="commands/up/">meshroom up</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="commands/watch/">meshroom watch</a>
                   </li>
               </ul>
       </div>
@@ -94,9 +125,9 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
             <div class="section" itemprop="articleBody">
               
-                <h1 id="meshroom">Meshroom</h1>
+                <h1 id="meshroom">Meshroom<a class="headerlink" href="#meshroom" title="Permanent link">&para;</a></h1>
 <p>A command-line tool to build and manage Cybersecurity Mesh Architectures (CSMA).</p>
-<h2 id="overview">Overview</h2>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
 <p>As defined by Gartner, a <a href="https://www.gartner.com/en/information-technology/glossary/cybersecurity-mesh">Cybersecurity Mesh Architecture</a> is a graph of interoperated cybersecurity services, each fulfilling a specific functional need (SIEM, EDR, EASM, XDR, TIP, <em>etc</em>).
 Adopting the CSMA and Meshroom's philosophy means choosing an interconnected ecosystem of high-quality products with specialized scopes rather than a captive all-in-one solution.
 It then means :</p>
@@ -105,8 +136,8 @@ It then means :</p>
 <li>Leveraging Open APIs to make your products communicate and interact eachother</li>
 <li>Exploiting products' extensibility via plugins and open-source components to encourage user-defined interoperability</li>
 </ul>
-<h2 id="users">Users</h2>
-<h3 id="as-a-vendor-fight-the-n-to-n-integration-curse">As a vendor : fight the N-to-N integration curse</h3>
+<h2 id="audience">Audience<a class="headerlink" href="#audience" title="Permanent link">&para;</a></h2>
+<h3 id="as-a-vendor-fight-the-n-to-n-integration-curse">As a vendor : fight the N-to-N integration curse<a class="headerlink" href="#as-a-vendor-fight-the-n-to-n-integration-curse" title="Permanent link">&para;</a></h3>
 <p>Cybersecurity vendors know it well : integrating with other cybersecurity products burns <strong>time and human resources</strong>. Integration teams feel so sad when every vendor has to spend those resources developing an integration with every other vendor, without work factorization : this is the <strong>N-to-N integration curse</strong>. This curse mostly originates from:</p>
 <ul>
 <li>Poor adoption of <strong>standard formats, protocols and API layouts</strong> to interoperate cybersecurity solutions</li>
@@ -116,7 +147,7 @@ It then means :</p>
 </ul>
 <p>Meshroom helps cybersecurity vendors <strong>build integrations</strong> between their products and other solutions, keeping the integration burden as low a possible.
 To do so, <code>meshroom</code> comes with a set of predefined <strong>product templates</strong> aligned with different market analyst categories that help the vendor to align its product integration with full category scope. If you are this vendor, by publishing your product's functional surface from one of this template, you encourage the adoption of open API layouts, formats and protocols. Whereby, you contributes to turn the N-to-N integration burden into an ideal repository of N <strong>reusable product definitions</strong>, where every new vendor can effortlessly plug with the N previously declared products.</p>
-<h3 id="as-a-msspmdr-setup-a-full-cybersecurity-mesh-via-declarative-and-versionable-manifests">As a MSSP/MDR : setup a full cybersecurity mesh via declarative and versionable manifests</h3>
+<h3 id="as-a-msspmdr-setup-a-full-cybersecurity-mesh-via-declarative-and-versionable-manifests">As a MSSP/MDR : setup a full cybersecurity mesh via declarative and versionable manifests<a class="headerlink" href="#as-a-msspmdr-setup-a-full-cybersecurity-mesh-via-declarative-and-versionable-manifests" title="Permanent link">&para;</a></h3>
 <p>Setting up a SOC is also a time-consuming operation. Sadly, MSSPs in charge of many similar information systems will often <strong>repeat</strong> those very same time-consuming steps again and again, switching from one solution's configuration interface to another one's admin console. Eventually, this will involve wildly manipulating API keys and admin forms, resulting in errors, security holes and blind spots. Many MSSPs maintain a <strong>run book</strong> of manual setup steps, and most of them <strong>automate</strong> part of those steps to get a SOC up-and-running within hours or days.</p>
 <p>Meshroom helps DevSec operators to <strong>setup a full meshed SOC</strong> made of dozens of tenants in a single CLI command : <code>meshroom up</code>.
 Because Meshroom projects are <strong>versioned</strong>, you can push and <strong>share SOC architectures</strong> via GitHub or your favorite forge, while keeping trace of every setup and provisioning processes executed. You can think of <code>meshroom up</code> as the cyber mesh equivalent of Infrastructure-as-code's <code>terraform apply</code> or containerized stack's <code>docker compose up</code>.</p>
@@ -126,7 +157,7 @@ Because Meshroom projects are <strong>versioned</strong>, you can push and <stro
 <li>all available integrations they offer to other products</li>
 <li>all the active connections (know as <code>Plugs</code> within Meshroom) between products (aka <code>producer</code>/<code>consumer</code> and <code>trigger</code>/<code>executor</code> relationships)</li>
 </ul>
-<h3 id="as-a-developer-painless-developer-experience-to-build-and-publish-custom-product-additions">As a developer : painless developer experience to build and publish custom product additions</h3>
+<h3 id="as-a-developer-painless-developer-experience-to-build-and-publish-custom-product-additions">As a developer : painless developer experience to build and publish custom product additions<a class="headerlink" href="#as-a-developer-painless-developer-experience-to-build-and-publish-custom-product-additions" title="Permanent link">&para;</a></h3>
 <p>Many cybersecurity platforms offer extensible capabilities via <strong>plugins</strong>, custom formats, custom rules, custom actions, <em>etc</em>. Here again, there's no accepted standard and each vendor defines its own approach (YAML files, python code, no-code workflows, <em>etc</em>). Yet, products interoperability often rely on <strong>contributing custom additions</strong> to one or both ends. Of course, this scope is often badly documented, and developers are left with trial-and-error quasi-reverse ninja approaches to understand how to make product A talk to product B. In the end, you'll eventually succeed in getting a working plugin, but then face the un-coordinated maze of <strong>homologation processes</strong> each vendor mandates to make your contribution <strong>public</strong>.</p>
 <p>Meshroom helps cybersecurity vendors to expose a <strong>single standard contribution model</strong> for:</p>
 <ul>
@@ -187,5 +218,5 @@ Because Meshroom projects are <strong>versioned</strong>, you can push and <stro
 
 <!--
 MkDocs version : 1.6.1
-Build Date UTC : 2025-01-10 16:39:33.613831+00:00
+Build Date UTC : 2025-01-10 21:23:50.416252+00:00
 -->

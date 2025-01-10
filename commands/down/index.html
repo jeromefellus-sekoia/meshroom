@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../../img/favicon.ico" />
-    <title>meshroom create product - Meshroom</title>
+    <title>meshroom down - Meshroom</title>
     <link rel="stylesheet" href="../../css/theme.css" />
     <link rel="stylesheet" href="../../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
@@ -13,8 +13,8 @@
     
       <script>
         // Current page data
-        var mkdocs_page_name = "meshroom create product";
-        var mkdocs_page_input_path = "commands/create_product.md";
+        var mkdocs_page_name = "meshroom down";
+        var mkdocs_page_input_path = "commands/down.md";
         var mkdocs_page_url = null;
       </script>
     
@@ -31,7 +31,8 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
-          <a href="../.." class="icon icon-home"> Meshroom
+          <a href="../..">
+          <img src="../../logo-title.svg" class="logo" alt="Logo"/>
         </a><div role="search">
   <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
       <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
@@ -49,14 +50,44 @@
                 </li>
               </ul>
               <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../create_product/">meshroom create product</a>
+                </li>
+              </ul>
+              <ul>
                 <li class="toctree-l1"><a class="reference internal" href="../../tutorial/">Tutorial</a>
                 </li>
               </ul>
               <p class="caption"><span class="caption-text">Commands</span></p>
               <ul class="current">
-                  <li class="toctree-l1 current"><a class="reference internal current" href="#">meshroom create product</a>
+                  <li class="toctree-l1"><a class="reference internal" href="../add/">meshroom add</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../configure/">meshroom configure</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../create_integration/">meshroom create integration</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">meshroom down</a>
     <ul class="current">
     </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../execute/">meshroom execute</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../init/">meshroom init</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../produce/">meshroom produce</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../publish/">meshroom publish</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../pull/">meshroom pull</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../remove/">meshroom remove</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../trigger/">meshroom trigger</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../unplug/">meshroom unplug</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../up/">meshroom up</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../watch/">meshroom watch</a>
                   </li>
               </ul>
       </div>
@@ -74,7 +105,7 @@
   <ul class="wy-breadcrumbs">
     <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
           <li class="breadcrumb-item">Commands</li>
-      <li class="breadcrumb-item active">meshroom create product</li>
+      <li class="breadcrumb-item active">meshroom down</li>
     <li class="wy-breadcrumbs-aside">
     </li>
   </ul>
@@ -83,12 +114,19 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
             <div class="section" itemprop="articleBody">
               
-                <h1 id="meshroom-create-product">meshroom create product</h1>
+                <h1 id="meshroom-down">meshroom down<a class="headerlink" href="#meshroom-down" title="Permanent link">&para;</a></h1>
+<div class="admonition usage">
+<p class="admonition-title">Usage</p>
+<p><strong>meshroom down</strong> [OPTIONS] [INSTANCE] [TARGET_INSTANCE] [TOPIC]
+                 [[push|pull]]</p>
+</div>
+<p>Unconfigure all Instances, a single Instance or a single Plug.</p>
               
             </div>
           </div><footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
-        <a href="../../tutorial/" class="btn btn-neutral float-left" title="Tutorial"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../create_integration/" class="btn btn-neutral float-left" title="meshroom create integration"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../execute/" class="btn btn-neutral float-right" title="meshroom execute">Next <span class="icon icon-circle-arrow-right"></span></a>
     </div>
 
   <hr/>
@@ -111,8 +149,10 @@
   <span class="rst-current-version" data-toggle="rst-current-version">
     
     
-      <span><a href="../../tutorial/" style="color: #fcfcfc">&laquo; Previous</a></span>
+      <span><a href="../create_integration/" style="color: #fcfcfc">&laquo; Previous</a></span>
     
+    
+      <span><a href="../execute/" style="color: #fcfcfc">Next &raquo;</a></span>
     
   </span>
 </div>
