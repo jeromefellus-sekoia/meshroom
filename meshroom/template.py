@@ -38,9 +38,12 @@ def generate_files_from_template(
             shutil.copy(fn, dst_file)
         else:
             # Replace placeholders
-            text = fn.read_text()
-            for k, v in placeholders.items():
-                text = text.replace(k, v)
+            try:
+                text = fn.read_text()
+                for k, v in placeholders.items():
+                    text = text.replace(k, v)
 
-            dst_file.write_text(text)
+                dst_file.write_text(text)
+            except UnicodeDecodeError:
+                pass  # Skip binary files
     print()
