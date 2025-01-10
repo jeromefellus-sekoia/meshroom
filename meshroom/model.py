@@ -1156,6 +1156,9 @@ def delete_instance(instance: str, product: str | None = None):
 def plug(src_instance: str, dst_instance: str, topic: str, mode: Mode | None = None, format: str | None = None):
     """
     Create a new Plug between two Instances for a given topic
+    The plug is created based on the available integrations between the products of the two instances:
+    * If one producer and one consumer are found, they are plugged together
+    * If one trigger and one executor are found, they are plugged together
     """
     # Ensure instances exist
     src = get_instance(src_instance)
