@@ -1,5 +1,5 @@
 <p align="center">
-<img src="docs/logo.svg" width=70>
+<img src="docs/logo.svg" width=170>
 </p>
 
 # Meshroom, the Cybersecurity Mesh Assistant
