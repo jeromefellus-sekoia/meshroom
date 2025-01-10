@@ -82,6 +82,13 @@ Some Integrations will simply be implicitly rendered by their product's YAML man
 
 Integrations that require specific configuration procedures can be explicitly defined via python hooks (see [Hooks](#hooks)) in the product's integrations folders. Python files insides those folders are automatically interpreted and used when calling `meshroom up` to know how to configure each end of a Plug edge, yielding an up-and-running interop between both products.
 
+Whithin Meshroom, Products `A` an `B` are said **interoperable** when either:
+* `A` defines an integration with `B` and `B` defines an integration with `A`, both defining a `@setup` Hook. In this scenario, `A` and `B` are considered responsible for setting up their end of the edge.
+* `A` or `B` defines a `@setup` Hook with `setup_mode='both'`. In this scenario, one of the products pair takes care of setting up the full interconnection, without requiring any provisioning for the other (this is typically the case for API endpoints, which by design don't need to be "configured").
+
+> A couple of Products exposing complementary capabilities is thus considered *theoretically interoperable* but since none provides a `@setup` hook, Meshroom doesn't know how to concretely setup the interconnection.
+
+
 You can create an integration via
 
 `meshroom create integration <product> <target_product> <topic> [options...]`

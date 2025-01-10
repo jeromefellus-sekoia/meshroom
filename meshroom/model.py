@@ -513,6 +513,19 @@ class Integration(Model):
             fn += f"_{self.mode}"
         return path_in_project(PROJECT_DIR / "products" / self.product / "integrations" / self.target_product / fn)
 
+    @property
+    def setup_mode(self):
+        """
+        Get the setup mode of the integration, based on the setup hooks defined for the product
+        """
+        hooks = self.get_hooks("setup")
+        if any(h.setup_mode == "both" for h in hooks):
+            return "both"
+        elif hooks:
+            return "single"
+        else:
+            return None
+
     def get_or_prompt(self, attribute: str, prompt: str):
         """Get the given :attribute from the integration's manifest, or prompt the user for it"""
         if not getattr(self, attribute, None):
@@ -792,6 +805,7 @@ class Plug(Model):
     src_config: dict = {}
     dst_config: dict = {}
     status: Literal["up", "down"] = "down"
+    kind: Literal["trigger"] | None = None
     settings: dict = {}
 
     def __str__(self):
@@ -859,39 +873,31 @@ class Plug(Model):
 
     def get_consumer(self):
         """Get a suitable consumer to setup the consumer side of the integration"""
-        consumers = list(list_integrations(self.get_dst_product().name, self.get_src_product().name, self.topic, role="consumer", mode=self.mode))
-        if not consumers:
+        try:
+            return self.get_matching_integrations()[1]
+        except ValueError:
             raise ValueError(f"No consumer seems to be implemented for {self}")
-        elif len(consumers) > 1:
-            raise ValueError(f"Multiple consumers found for {self}:\n{consumers}")
-        return consumers[0]
 
     def get_producer(self):
         """Get a suitable producer to setup the producer side of the integration"""
-        producers = list(list_integrations(self.get_src_product().name, self.get_dst_product().name, self.topic, role="producer", mode=self.mode))
-        if not producers:
+        try:
+            return self.get_matching_integrations()[0]
+        except ValueError:
             raise ValueError(f"No producer seems to be implemented for {self}")
-        elif len(producers) > 1:
-            raise ValueError(f"Multiple producers found for {self}\n{producers}")
-        return producers[0]
 
     def get_trigger(self):
         """Get a suitable trigger to setup the trigger side of the integration"""
-        triggers = list(list_integrations(self.get_src_product().name, self.get_dst_product().name, self.topic, role="trigger", mode=self.mode))
-        if not triggers:
+        try:
+            return self.get_matching_integrations()[0]
+        except ValueError:
             raise ValueError(f"No trigger seems to be implemented for {self}")
-        elif len(triggers) > 1:
-            raise ValueError(f"Multiple triggers found for {self}:\n{triggers}")
-        return triggers[0]
 
     def get_executor(self):
         """Get a suitable executor to setup the executor side of the integration"""
-        executors = list(list_integrations(self.get_dst_product().name, self.get_src_product().name, self.topic, role="producer", mode=self.mode))
-        if not executors:
+        try:
+            return self.get_matching_integrations()[1]
+        except ValueError:
             raise ValueError(f"No executor seems to be implemented for {self}")
-        elif len(executors) > 1:
-            raise ValueError(f"Multiple executors found for {self}\n{executors}")
-        return executors[0]
 
     def get_src_instance(self):
         """Get the source Instance of the integration"""
@@ -908,6 +914,35 @@ class Plug(Model):
     def get_dst_product(self):
         """Get the destination Product of the integration"""
         return get_product(self.get_dst_instance().product)
+
+    def get_matching_integrations(self):
+        """
+        Get the matching source and destination integrations for this plug
+        * If a matching couple with setup_mode!="both" is found, it is returned
+        * Otherwise if one of the two defines a hook with setup_mode="both", the other is returned as None
+        * Producers/Triggers with setup_mode="both" take precedence over Consumers/Executors with setup_mode="both"
+        """
+        src_role = "trigger" if self.kind == "trigger" else "producer"
+        dst_role = "executor" if self.kind == "trigger" else "consumer"
+        srcs = list(list_integrations(self.get_src_product().name, self.get_dst_product().name, self.topic, role=src_role, mode=self.mode))
+        dsts = list(list_integrations(self.get_dst_product().name, self.get_src_product().name, self.topic, role=dst_role, mode=self.mode))
+
+        # Prioritize integration pairs with setup_mode!="both"
+        if any(p.setup_mode != "both" for p in srcs) and any(c.setup_mode != "both" for c in dsts):
+            return [p for p in srcs if p.setup_mode != "both"][0], [c for c in dsts if c.setup_mode != "both"][0]
+
+        # Then look for a producer or consumer with setup_mode="both" (producers taking precedence)
+        for p in srcs:
+            if p.setup_mode == "both":
+                return p, None
+        for c in dsts:
+            if c.setup_mode == "both":
+                return None, c
+
+        if not srcs:
+            raise ValueError(f"No {src_role} seems to be implemented for {self}")
+        if not dsts:
+            raise ValueError(f"No {dst_role} seems to be implemented for {self}")
 
     def get_unconfigured_settings(self):
         """List the settings that are not configured yet for the producer and the consumer"""
@@ -926,16 +961,19 @@ class Plug(Model):
         info("Setup", self)
 
         # Look for a (consumer, producer) pair of integrations
-        p = self.get_producer()
-        c = self.get_consumer()
+        p, c = self.get_matching_integrations()
 
         # In pull mode, the producer is set up first, (resp. consumer in push mode)
-        if self.mode == "pull":
+        if self.mode == "pull" and p and c:
             p.up(self)
             c.up(self)
-        else:
+        elif p and c:
             c.up(self)
             p.up(self)
+        elif p:
+            p.up(self)
+        elif c:
+            c.up(self)
 
         self.status = "up"
         return self.save()
@@ -1157,8 +1195,12 @@ def plug(src_instance: str, dst_instance: str, topic: str, mode: Mode | None = N
     """
     Create a new Plug between two Instances for a given topic
     The plug is created based on the available integrations between the products of the two instances:
-    * If one producer and one consumer are found, they are plugged together
-    * If one trigger and one executor are found, they are plugged together
+    * If one producer and one consumer are found with setup_mode="single", they are plugged together
+    * If one trigger and one executor are found with setup_mode="single", they are plugged together
+    * If only one end of the plug is found, the plug is created only if one integration implements a hook with setup_mode="both"
+
+    If no integration is found, or no integration with setup_mode="single"/"both", or only one end is found but hasn't setup_mode="both",
+    the plug can't be created and a ValueError is raised
     """
     # Ensure instances exist
     src = get_instance(src_instance)
@@ -1173,9 +1215,11 @@ def plug(src_instance: str, dst_instance: str, topic: str, mode: Mode | None = N
         consumers = list(list_integrations(dst.product, src.product, topic, "consumer", mode=mode, format=format))
         triggers = list(list_integrations(src.product, dst.product, topic, "trigger", mode=mode, format=format))
         executors = list(list_integrations(dst.product, src.product, topic, "executor", mode=mode, format=format))
+
+        # producer-consumer pairs of setup_mode="single" take precedence
         for producer in producers:
             for consumer in consumers:
-                if producer.matches(consumer):
+                if producer.setup_mode == "single" and consumer.setup_mode == "single" and producer.matches(consumer):
                     plug = Plug(
                         src_instance=src_instance,
                         dst_instance=dst_instance,
@@ -1185,18 +1229,32 @@ def plug(src_instance: str, dst_instance: str, topic: str, mode: Mode | None = N
                     ).save()
                     info(f"✓ Plugged {plug}")
                     return plug
+
         for trigger in triggers:
             for executor in executors:
-                if trigger.matches(executor):
+                if producer.setup_mode == "single" and consumer.setup_mode == "single" and trigger.matches(executor):
                     plug = Plug(
                         src_instance=src_instance,
                         dst_instance=dst_instance,
                         topic=topic,
                         mode=trigger.mode or executor.mode or mode,
                         format=trigger.format or executor.format or format,
+                        kind="trigger",
                     ).save()
                     info(f"✓ Plugged {plug}")
                     return plug
+
+        for i in [*producers, *consumers, *triggers, *executors]:
+            if i.setup_mode == "both":
+                plug = Plug(
+                    src_instance=src_instance,
+                    dst_instance=dst_instance,
+                    topic=topic,
+                    mode=i.mode or mode,
+                    format=i.format or format,
+                    kind="trigger" if i.role in ("trigger", "executor") else None,
+                ).save()
+                info(f"✓ Plugged {plug}")
 
         raise ValueError(f"""❌ No integration between {dst_instance} ({dst.product}) and {src_instance} ({src.product}) for topic {topic} (mode={mode}) is implemented
 
