@@ -7,6 +7,6 @@ def setup_consumer_for_events():
     pass
 
 
-@setup_consumer("stuff", title="Make magic happen", mode="pull")
+@setup_consumer("stuff", title="Make magic happen", mode="pull", owns_both=True)
 def setup_pull_consumer_for_stuff(plug: Plug):
     plug.set_secret("youpi", "42")

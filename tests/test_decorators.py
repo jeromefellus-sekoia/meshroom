@@ -41,6 +41,7 @@ def test_setup_decorator():
             order=None,
             title="Make magic happen",
             type="setup",
+            owns_both=True,
         ),
         Hook(
             product="myproduct",

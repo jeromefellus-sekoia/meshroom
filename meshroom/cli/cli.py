@@ -288,11 +288,11 @@ def pull(
     product: str,
 ):
     """Pull a product's SDK from its repository"""
-    try:
-        model.get_product(product).pull()
-    except ValueError as e:
-        error(e)
-        exit(1)
+    # try:
+    model.get_product(product).pull()
+    # except ValueError as e:
+    #     error(e)
+    #     exit(1)
 
 
 @meshroom.command()

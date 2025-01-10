@@ -3,7 +3,7 @@ from meshroom.model import Integration, Plug, Instance
 from .api import SekoiaAPI
 
 
-@setup_consumer("events", order="first")
+@setup_consumer("events", order="first", owns_both=True)
 def create_intake_key(integration: Integration, plug: Plug, instance: Instance):
     """Create an intake key to consume events"""
     from meshroom.interaction import debug, info

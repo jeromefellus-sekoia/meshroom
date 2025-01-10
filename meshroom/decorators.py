@@ -13,16 +13,16 @@ HookType = Literal[
     "trigger",  # @trigger hooks are executed upon `meshroom trigger`
     "execute",  # @execute hooks are executed upon `meshroom execute`
     "publish",  # @publish hooks are executed upon `meshroom publish`
+    "pull",  # @pull hooks are executed upon `meshroom pull`
 ]
 all_hooks: set["Hook"] = set()
 HookOrder = Literal["first", "last"] | int
-SetupMode = Literal["both", "single"]
 
 
 class Hook(Model):
     product: str
     target_product: str | None
-    role: Role
+    role: Role | None = None
     topic: str | None = None
     func: Callable
     mode: Mode | None = None
@@ -31,7 +31,7 @@ class Hook(Model):
     order: HookOrder | None = None
     title: str
     type: HookType = "setup"
-    setup_mode: SetupMode = "single"
+    owns_both: bool = False
 
     def match(self, o: Integration | Product):
         if isinstance(o, Integration):
@@ -70,7 +70,7 @@ class Hook(Model):
         all_hooks.clear()
 
     def __hash__(self):
-        return hash((self.product, self.target_product, self.role, self.mode, self.topic, self.title, self.type, self.setup_mode))
+        return hash((self.product, self.target_product, self.role, self.mode, self.topic, self.title, self.type, self.owns_both))
 
     def __eq__(self: "Hook", other: "Hook"):
         return (
@@ -81,7 +81,7 @@ class Hook(Model):
             and self.topic == other.topic
             and self.title == other.title
             and self.type == other.type
-            and self.setup_mode == other.setup_mode
+            and self.owns_both == other.owns_both
         )
 
     @staticmethod
@@ -97,7 +97,7 @@ class Hook(Model):
         title: str | None = None,
         type: HookType = "setup",
         format: str | None = None,
-        setup_mode: SetupMode = "single",
+        owns_both: bool = False,
     ):
         all_hooks.add(
             sf := Hook(
@@ -112,7 +112,7 @@ class Hook(Model):
                 title=title or inspect.getdoc(func) or func.__name__,
                 type=type,
                 format=format,
-                setup_mode=setup_mode,
+                owns_both=owns_both,
             )
         )
         return sf
@@ -136,7 +136,7 @@ def setup_consumer(
     format: str | None = None,
     keep_when_overloaded: bool = False,
     order: HookOrder | None = None,
-    setup_mode: SetupMode = "single",
+    owns_both: bool = False,
 ):
     """
     Decorator to declare a function as a generic consumer setup hook for the product where it resides
@@ -147,7 +147,7 @@ def setup_consumer(
         func_file = Path(inspect.getfile(func))
         if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
             raise ValueError("setup_consumer() decorator is allowed only in a product's setup.py")
-        Hook.add(product.name, None, "consumer", topic, mode, func, keep_when_overloaded, order, title, "setup", format, setup_mode=setup_mode)
+        Hook.add(product.name, None, "consumer", topic, mode, func, keep_when_overloaded, order, title, "setup", format, owns_both=owns_both)
         return func
 
     return decorator
@@ -160,7 +160,7 @@ def teardown_consumer(
     format: str | None = None,
     keep_when_overloaded: bool = False,
     order: HookOrder | None = None,
-    setup_mode: SetupMode = "single",
+    owns_both: bool = False,
 ):
     """
     Decorator to declare a function as a generic consumer setup hook for the product where it resides
@@ -171,7 +171,7 @@ def teardown_consumer(
         func_file = Path(inspect.getfile(func))
         if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
             raise ValueError("teardown_consumer() decorator is allowed only in a product's setup.py")
-        Hook.add(product.name, None, "consumer", topic, mode, func, keep_when_overloaded, order, title, "teardown", format, setup_mode=setup_mode)
+        Hook.add(product.name, None, "consumer", topic, mode, func, keep_when_overloaded, order, title, "teardown", format, owns_both=owns_both)
         return func
 
     return decorator
@@ -184,7 +184,7 @@ def setup_executor(
     format: str | None = None,
     keep_when_overloaded: bool = False,
     order: HookOrder | None = None,
-    setup_mode: SetupMode = "single",
+    owns_both: bool = False,
 ):
     """
     Decorator to declare a function as a generic executor setup hook for the product where it resides
@@ -195,7 +195,7 @@ def setup_executor(
         func_file = Path(inspect.getfile(func))
         if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
             raise ValueError("setup_executor() decorator is allowed only in a product's setup.py")
-        Hook.add(product.name, None, "executor", topic, mode, func, keep_when_overloaded, order, title, "setup", format, setup_mode=setup_mode)
+        Hook.add(product.name, None, "executor", topic, mode, func, keep_when_overloaded, order, title, "setup", format, owns_both=owns_both)
         return func
 
     return decorator
@@ -208,7 +208,7 @@ def teardown_executor(
     format: str | None = None,
     keep_when_overloaded: bool = False,
     order: HookOrder | None = None,
-    setup_mode: SetupMode = "single",
+    owns_both: bool = False,
 ):
     """
     Decorator to declare a function as a generic executor setup hook for the product where it resides
@@ -219,7 +219,7 @@ def teardown_executor(
         func_file = Path(inspect.getfile(func))
         if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
             raise ValueError("teardown_executor() decorator is allowed only in a product's setup.py")
-        Hook.add(product.name, None, "executor", topic, mode, func, keep_when_overloaded, order, title, "teardown", format, setup_mode=setup_mode)
+        Hook.add(product.name, None, "executor", topic, mode, func, keep_when_overloaded, order, title, "teardown", format, owns_both=owns_both)
         return func
 
     return decorator
@@ -232,7 +232,7 @@ def setup_producer(
     format: str | None = None,
     keep_when_overloaded: bool = False,
     order: HookOrder | None = None,
-    setup_mode: SetupMode = "single",
+    owns_both: bool = False,
 ):
     """
     Decorator to declare a function as a generic producer setup hook for the product where it resides
@@ -244,7 +244,7 @@ def setup_producer(
         if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
             raise ValueError("setup_producer() decorator is allowed only in a product's setup.py")
 
-        Hook.add(product.name, None, "producer", topic, mode, func, keep_when_overloaded, order, title, "setup", format, setup_mode=setup_mode)
+        Hook.add(product.name, None, "producer", topic, mode, func, keep_when_overloaded, order, title, "setup", format, owns_both=owns_both)
         return func
 
     return decorator
@@ -257,7 +257,7 @@ def teardown_producer(
     format: str | None = None,
     keep_when_overloaded: bool = False,
     order: HookOrder | None = None,
-    setup_mode: SetupMode = "single",
+    owns_both: bool = False,
 ):
     """
     Decorator to declare a function as a generic producer setup hook for the product where it resides
@@ -269,7 +269,7 @@ def teardown_producer(
         if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
             raise ValueError("teardown_producer() decorator is allowed only in a product's setup.py")
 
-        Hook.add(product.name, None, "producer", topic, mode, func, keep_when_overloaded, order, title, "teardown", format, setup_mode=setup_mode)
+        Hook.add(product.name, None, "producer", topic, mode, func, keep_when_overloaded, order, title, "teardown", format, owns_both=owns_both)
         return func
 
     return decorator
@@ -282,7 +282,7 @@ def setup_trigger(
     format: str | None = None,
     keep_when_overloaded: bool = False,
     order: HookOrder | None = None,
-    setup_mode: SetupMode = "single",
+    owns_both: bool = False,
 ):
     """
     Decorator to declare a function as a generic trigger setup hook for the product where it resides
@@ -294,7 +294,7 @@ def setup_trigger(
         if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
             raise ValueError("setup_trigger() decorator is allowed only in a product's setup.py")
 
-        Hook.add(product.name, None, "trigger", topic, mode, func, keep_when_overloaded, order, title, "setup", format, setup_mode=setup_mode)
+        Hook.add(product.name, None, "trigger", topic, mode, func, keep_when_overloaded, order, title, "setup", format, owns_both=owns_both)
         return func
 
     return decorator
@@ -307,7 +307,7 @@ def teardown_trigger(
     format: str | None = None,
     keep_when_overloaded: bool = False,
     order: HookOrder | None = None,
-    setup_mode: SetupMode = "single",
+    owns_both: bool = False,
 ):
     """
     Decorator to declare a function as a generic trigger setup hook for the product where it resides
@@ -319,7 +319,7 @@ def teardown_trigger(
         if func_file.parent.parent.resolve() != (get_project_dir() / "products").resolve() or not (product := get_product(func_file.parent.name)):
             raise ValueError("teardown_trigger() decorator is allowed only in a product's setup.py")
 
-        Hook.add(product.name, None, "trigger", topic, mode, func, keep_when_overloaded, order, title, "teardown", format, setup_mode=setup_mode)
+        Hook.add(product.name, None, "trigger", topic, mode, func, keep_when_overloaded, order, title, "teardown", format, owns_both=owns_both)
         return func
 
     return decorator
@@ -545,7 +545,7 @@ def setup(
     title: str | None = None,
     format: str | None = None,
     order: HookOrder | None = None,
-    setup_mode: SetupMode = "single",
+    owns_both: bool = False,
 ):
     """
     Decorator to declare a function as a setup step for the integration where it resides
@@ -558,7 +558,7 @@ def setup(
         if not i:
             raise ValueError("setup() decorator can't be used outside of an Integration")
 
-        Hook.add(i.product, i.target_product, i.role, i.topic, i.mode, func, True, order, title, "setup", format, setup_mode=setup_mode)
+        Hook.add(i.product, i.target_product, i.role, i.topic, i.mode, func, True, order, title, "setup", format, owns_both=owns_both)
         return func
 
     return decorator
@@ -567,7 +567,7 @@ def setup(
 def teardown(
     title: str | None = None,
     order: HookOrder | None = None,
-    setup_mode: SetupMode = "single",
+    owns_both: bool = False,
 ):
     """
     Decorator to declare a function as a setup step for the integration where it resides
@@ -580,7 +580,7 @@ def teardown(
         if not i:
             raise ValueError("teardown() decorator can't be used outside of an Integration")
 
-        Hook.add(i.product, i.target_product, i.role, i.topic, i.mode, func, True, order, title, "teardown", setup_mode=setup_mode)
+        Hook.add(i.product, i.target_product, i.role, i.topic, i.mode, func, True, order, title, "teardown", owns_both=owns_both)
         return func
 
     return decorator

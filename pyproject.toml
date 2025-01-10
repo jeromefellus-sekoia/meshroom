@@ -36,3 +36,4 @@ line-length = 190
 
 [tool.pytest.ini_options]
 testpaths = ["./tests"]
+norecursedirs = ["./tests/e2e/data", "data"]
