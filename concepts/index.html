@@ -165,6 +165,12 @@ consumes:
 <p>To be interoperable, most product capabilities can't just be declared, some must be programmatically configured, some even involve pushing custom code or calling multiple APIs to get up-and-running. The recipe of setting up a consumer/producer/trigger/executor capability on a product is termed an <strong>Integration</strong>.</p>
 <p>Some Integrations will simply be implicitly rendered by their product's YAML manifest. For example, an exposed HTTP GET API at a given URL is fully described by its HTTP nature, the method used, the endpoint's URL and accepted path and query params. As in an Open API manifest, this information is enough to interconnect with a 3rd-party.</p>
 <p>Integrations that require specific configuration procedures can be explicitly defined via python hooks (see <a href="#hooks">Hooks</a>) in the product's integrations folders. Python files insides those folders are automatically interpreted and used when calling <code>meshroom up</code> to know how to configure each end of a Plug edge, yielding an up-and-running interop between both products.</p>
+<p>Whithin Meshroom, Products <code>A</code> an <code>B</code> are said <strong>interoperable</strong> when either:
+* <code>A</code> defines an integration with <code>B</code> and <code>B</code> defines an integration with <code>A</code>, both defining a <code>@setup</code> Hook. In this scenario, <code>A</code> and <code>B</code> are considered responsible for setting up their end of the edge.
+* <code>A</code> or <code>B</code> defines a <code>@setup</code> Hook with <code>setup_mode='both'</code>. In this scenario, one of the products pair takes care of setting up the full interconnection, without requiring any provisioning for the other (this is typically the case for API endpoints, which by design don't need to be "configured").</p>
+<blockquote>
+<p>A couple of Products exposing complementary capabilities is thus considered <em>theoretically interoperable</em> but since none provides a <code>@setup</code> hook, Meshroom doesn't know how to concretely setup the interconnection.</p>
+</blockquote>
 <p>You can create an integration via</p>
 <p><code>meshroom create integration &lt;product&gt; &lt;target_product&gt; &lt;topic&gt; [options...]</code></p>
 <p>You can see that an integration is always about a specific topic. If a given product endpoint serves multiple purposes, you shall define as many Integrations as necessary to cover the actual functional scope of it.</p>
