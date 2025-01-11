@@ -63,10 +63,10 @@ This tutorial assumes we're a vendor of a new product that didn't get a meshroom
 meshroom create product myedr --from edr
 ```
 
-This created and scaffolded the `products/myedr` folder, with a draft definition.yaml and several other files. Of course, this is not enough to fully express myedr's full interop surface, but can be considered a good starting point:
+This created and scaffolded the folder `products/myedr`, with a draft definition.yaml and several other files. Of course, this is not enough to fully express myedr's full interop surface, but can be considered as a good starting point:
 
-* some typical capabilities of a standard EDR have been automatically added to `definition.yaml` (such as an events consumer, an alerts producer, an containment executor, *etc*).
-* some basic hooks have been set in boilerplate files, ready for your own implementation of how a myedr tenant can be remotely provisioned and controlled.
+* some typical capabilities of a standard EDR have been automatically added to `definition.yaml` (such as an events consumer, an alerts producer, a containment executor, *etc*).
+* some basic hooks have been set in boilerplate files, ready for your own implementation to define how the myedr instance can be remotely provisioned and controlled.
 
 Since myedr is advertised as intelligence-driven, let's add three more capabilities, by editing its `definition.yaml`:
 
@@ -86,7 +86,7 @@ executes:
 
 We just added:
 
-* a capability to **consume** the `threats` topic in **push** mode (that is, producers will actively call our myedr instance to provide original CTI data to it), following the well-known STIX standard.
+* a capability to **consume** the `threats` topic in **push** mode (meaning that producers will actively call our myedr instance to provide original CTI data to it), following the well-known STIX standard.
 * a capability to **produce** `threats` in **pull** mode (that is, 3rd-parties will have to query an API GET endpoint to obtain CTI from our myedr instance), again as STIX bundles.
 * an **execution** capability for `search_threat` action, which by default works in **push** mode (triggers must make an active call to this executor to perform the action). No particular format constraint is set for it, 3rd-parties will have to figure out the expected payload to send to get a successful search.
 
