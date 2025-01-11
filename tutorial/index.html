@@ -167,10 +167,10 @@ rm -rf tmp tmp.tar.gz
 <p>This tutorial assumes we're a vendor of a new product that didn't get a meshroom definition yet. So let's create it from scratch, or better, using one of the provided product capabilities templates, found under <a href="https://github.com/jeromefellus-sekoia/meshroom/tree/master/meshroom/templates/products">https://github.com/jeromefellus-sekoia/meshroom/tree/master/meshroom/templates/products</a></p>
 <pre><code class="language-bash">meshroom create product myedr --from edr
 </code></pre>
-<p>This created and scaffolded the <code>products/myedr</code> folder, with a draft definition.yaml and several other files. Of course, this is not enough to fully express myedr's full interop surface, but can be considered a good starting point:</p>
+<p>This created and scaffolded the folder <code>products/myedr</code>, with a draft definition.yaml and several other files. Of course, this is not enough to fully express myedr's full interop surface, but can be considered as a good starting point:</p>
 <ul>
-<li>some typical capabilities of a standard EDR have been automatically added to <code>definition.yaml</code> (such as an events consumer, an alerts producer, an containment executor, <em>etc</em>).</li>
-<li>some basic hooks have been set in boilerplate files, ready for your own implementation of how a myedr tenant can be remotely provisioned and controlled.</li>
+<li>some typical capabilities of a standard EDR have been automatically added to <code>definition.yaml</code> (such as an events consumer, an alerts producer, a containment executor, <em>etc</em>).</li>
+<li>some basic hooks have been set in boilerplate files, ready for your own implementation to define how the myedr instance can be remotely provisioned and controlled.</li>
 </ul>
 <p>Since myedr is advertised as intelligence-driven, let's add three more capabilities, by editing its <code>definition.yaml</code>:</p>
 <pre><code class="language-yaml">consumes:
@@ -187,7 +187,7 @@ executes:
 </code></pre>
 <p>We just added:</p>
 <ul>
-<li>a capability to <strong>consume</strong> the <code>threats</code> topic in <strong>push</strong> mode (that is, producers will actively call our myedr instance to provide original CTI data to it), following the well-known STIX standard.</li>
+<li>a capability to <strong>consume</strong> the <code>threats</code> topic in <strong>push</strong> mode (meaning that producers will actively call our myedr instance to provide original CTI data to it), following the well-known STIX standard.</li>
 <li>a capability to <strong>produce</strong> <code>threats</code> in <strong>pull</strong> mode (that is, 3rd-parties will have to query an API GET endpoint to obtain CTI from our myedr instance), again as STIX bundles.</li>
 <li>an <strong>execution</strong> capability for <code>search_threat</code> action, which by default works in <strong>push</strong> mode (triggers must make an active call to this executor to perform the action). No particular format constraint is set for it, 3rd-parties will have to figure out the expected payload to send to get a successful search.</li>
 </ul>
