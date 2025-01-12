@@ -86,11 +86,11 @@ executes:
 
 We just added:
 
-* a capability to **consume** the `threats` topic in **push** mode (meaning that producers will actively call our myedr instance to provide original CTI data to it), following the well-known STIX standard.
-* a capability to **produce** `threats` in **pull** mode (that is, 3rd-parties will have to query an API GET endpoint to obtain CTI from our myedr instance), again as STIX bundles.
+* a capability to **consume** `threats` in **push** mode (meaning that producers will actively publish on a `threats` topic information that will be consumed by our myedr instance), following the well-known STIX standard.
+* a capability to **produce** `threats` in **pull** mode (meaning that 3rd-parties will have to query an API GET endpoint to obtain CTI from our myedr instance), again as STIX bundles.
 * an **execution** capability for `search_threat` action, which by default works in **push** mode (triggers must make an active call to this executor to perform the action). No particular format constraint is set for it, 3rd-parties will have to figure out the expected payload to send to get a successful search.
 
-Let's assume that while the CTI production and consumption APIs are builtin in myedr, the threat search isn't available via API out-of-the-box. But myedr exposes a plugin mechanism to add such new external surface. We can then implement a `@setup` hook that will leverage this mechanism to automate the setup of our search_threat capabilities on a live myedr instance:
+Let's assume that while the CTI production and consumption APIs are builtin in myedr, the threat search isn't available via API out-of-the-box. But myedr exposes a plugin mechanism to add such new external surface. We can then implement a `@setup` hook that will leverage this mechanism to automate the setup of our search_threat capability on a live myedr instance:
 
 * Create the `products/myedr/search_threat.py` file containing
 
@@ -106,7 +106,7 @@ def setup_threat_search_api_via_myedr_plugin(integration: Integration, plug: Plu
     raise NotImplementedError("Implement the setup mechanism here")
 ```
 
-We'll certainly have to implement the actual python logic (using HTTP requests libraries, or whatever is required to programmatically automate the configuration of a myedr plugin).
+> In a future realease, we'll certainly have to implement the actual python logic (using HTTP requests libraries, or whatever is required to programmatically automate the configuration of a myedr plugin).
 
 Notice the `.get_secret` methods on the Plug and Instance objects: they allow you to securely store and retrieve sensitive configuration tokens to remotely operate your Instances. Integrations, Instances and Plugs can define arbitrary settings in their `definition.yaml` so that users get prompted for necessary values upon `meshroom up`, interactively.
 
@@ -116,13 +116,13 @@ Let's add those required secrets and settings to our product's `definition.yaml`
 settings:
   - name: API_KEY
     secret: true
-  - name: some_setting
+  - name: another_setting
     default: whatever
 ```
 
-This tells meshroom that any Instance of our myedr Product will require an API_KEY, stored securely, and an optional `some_setting` configuration parameter, prompted upon `meshroom add` when creating the said Instances.
+This tells meshroom that any Instance of our myedr Product will require an API_KEY, stored securely, and an optional `another_setting` configuration parameter, prompted upon `meshroom add` when creating the said Instances.
 
-We may also require settings specific for myedr to interop with a particular 3rd-party, say, Sekoia.io
+We may also require specific settings for myedr to interoperate with a particular 3rd-party, such as Sekoia.io
 
 Let's create a suitable Integration for that:
 
@@ -130,7 +130,7 @@ Let's create a suitable Integration for that:
 meshroom create integration myedr sekoia search_threat executor
 ```
 
-This created a `search_threat_executor.yaml` manifest under `products/myedr/integrations/sekoia/` to hold the integration-specific settings, in the same way we did at Product level. We can then add a `settings:` section akin to the Product's one. Upon `meshroom plug some_sekoia_instance some_myedr_instance search_threat`, because myedr has defined specific settings for the executor end of this Plug, the user we'll be prompted for necessary values.
+This command creates a `search_threat_executor.yaml` manifest under `products/myedr/integrations/sekoia/` to hold the integration-specific settings, in the same way we did at Product level. Similarly we can add a `settings:` section. Because of these specific settings for the executor, the user we'll be prompted for the necessary values when he runs `meshroom plug some_sekoia_instance some_myedr_instance search_threat`.
 
 We thus demonstrated the basic concepts of:
 
