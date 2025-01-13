@@ -136,12 +136,12 @@ We thus demonstrated the basic concepts of:
 
 * hooks
 * product and integration manifests with settings
-* how settings and secrets get prompted at `meshroom add` and `meshroom plug`. Note that you can (re-)configure those settings using `meshroom configure`, *e.g.*, when you'll instantiate your mesh on a different information system
+* how settings and secrets get prompted at `meshroom add` and `meshroom plug` (<-- pour l'instant c'est pas démontré, ça arrive en step 3) . Note that you can (re-)configure those settings using `meshroom configure`, *e.g.*, when you'll instantiate your mesh on a different information system
 
 We can confirm the existence of our new product and integrations via
 ```bash
-meshroom list products mye
-meshroom list integrations myedr
+meshroom list products my (<--ici on accepte les proximités de chaines mais pas les wildcard my*)
+meshroom list integrations myedr  (<--ici on n'accepte pas les proximités de chaines)
 ```
 
 ### 3. Create a mesh
