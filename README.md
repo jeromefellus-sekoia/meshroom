@@ -3,6 +3,9 @@
 </p>
 
 # Meshroom, the Cybersecurity Mesh Assistant
+
+
+
 ![release](https://img.shields.io/github/v/release/jeromefellus-sekoia/meshroom?)
 ![build](https://img.shields.io/github/actions/workflow/status/jeromefellus-sekoia/meshroom/pytest.yml?branch=master)
 ![MIT license](https://img.shields.io/github/license/jeromefellus-sekoia/meshroom)
@@ -22,6 +25,10 @@ pip install meshroom
 ### What is CSMA ?
 
 A Cybersecurity Mesh Architecture is a graph of interoperated cybersecurity services, each fulfilling a specific functional need (SIEM, EDR, EASM, XDR, TIP, *etc*). Adopting Meshroom's philosophy means promoting an interconnected ecosystem of high-quality products with specialized scopes rather than a captive all-in-one solution.
+
+![CSMA](docs/img/graph.svg)
+
+
 
 ### Where to start ?
 

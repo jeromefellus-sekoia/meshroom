@@ -6,10 +6,13 @@ TODO CYCLE SCHEMA
 
 ## Capability graph
 
+
 Formally, a cybersecurity mesh architecture (CSMA) is a directed graph of products talking to eachother.
 More precisely, it is an overlay of 2 graphs:
 
-* The **capability graph**, which expresses the set of all products that can be interoperated with eachother and what functional capacity they expose. Nodes of this graph are Product capabilities, and edges connect complementary capabilities. For example, one product may **consume** alerts **produced** by another product, or can **execute** actions **triggered** by another one. Edges thus characterise interop opportunities about a certain **Topic** between a source product and a destination product. The direction of the edges materializes the dataflow : the source product **produces/triggers** information (resp. actions) that the destination product **consumes/executes**. An edge exists as soon as the products define a compatible producer (or trigger) / consumer (resp. executor) pair of **Integrations**. The edge also carries the **roles** in the data exchange
+![capability graph](img/graph.svg)
+
+* The **capability graph**, which expresses the set of all products that can be interoperated with eachother and what functional capacities they expose. Nodes of this graph are Product capabilities, and edges connect complementary capabilities. For example, one product may **consume** alerts **produced** by another product, or can **execute** actions **triggered** by another one. Edges thus characterise interop opportunities about a certain **Topic** between a source product and a destination product. The direction of the edges materializes the dataflow : the source product **produces/triggers** information (resp. actions) that the destination product **consumes/executes**. An edge exists as soon as the products define a compatible producer (or trigger) / consumer (resp. executor) pair of **Integrations**. The edge also carries the **roles** in the data exchange
 
     * in **push** mode, the producer is **active** and the consumer is **passive** (*e.g.* a Syslog forwarder)
     * in **pull** mode, the producer is **passive** and the consumer is **active** (*e.g.* an HTTP GET API)
