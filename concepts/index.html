@@ -91,6 +91,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../commands/init/">meshroom init</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../commands/plug/">meshroom plug</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../commands/produce/">meshroom produce</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../commands/publish/">meshroom publish</a>
@@ -228,7 +230,7 @@ When no matching constraint set can be found out of all existing Integrations, t
 <p>You can plug two Instances using</p>
 <p><code>meshroom plug &lt;source_instance&gt; &lt;destination_instance&gt; &lt;topic&gt; [options...]</code></p>
 <p>and unplug an existing plug using</p>
-<p><code>meshroom unplug &lt;source_instance&gt; &lt;destination_instance&gt; &lt;topic&gt; [options...]</code></p>
+<p><code>meshroom unplug &lt;topic&gt; &lt;source_instance&gt; &lt;destination_instance&gt; [options...]</code></p>
 <p>Note that there can only be one plug at a time for each set of constraints. You can get several plugs on the same Instances pair for the same topic by narrowing their constraint sets.</p>
 <p>You can list and search plugs using</p>
 <p><code>meshroom list plugs</code></p>

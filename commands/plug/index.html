@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../../img/favicon.ico" />
-    <title>meshroom init - Meshroom</title>
+    <title>meshroom plug - Meshroom</title>
     <link rel="stylesheet" href="../../css/theme.css" />
     <link rel="stylesheet" href="../../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
@@ -13,8 +13,8 @@
     
       <script>
         // Current page data
-        var mkdocs_page_name = "meshroom init";
-        var mkdocs_page_input_path = "commands/init.md";
+        var mkdocs_page_name = "meshroom plug";
+        var mkdocs_page_input_path = "commands/plug.md";
         var mkdocs_page_url = null;
       </script>
     
@@ -67,11 +67,13 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../execute/">meshroom execute</a>
                   </li>
-                  <li class="toctree-l1 current"><a class="reference internal current" href="#">meshroom init</a>
-    <ul class="current">
-    </ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../init/">meshroom init</a>
                   </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../plug/">meshroom plug</a>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">meshroom plug</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#options">Options</a>
+    </li>
+    </ul>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../produce/">meshroom produce</a>
                   </li>
@@ -105,7 +107,7 @@
   <ul class="wy-breadcrumbs">
     <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
           <li class="breadcrumb-item">Commands</li>
-      <li class="breadcrumb-item active">meshroom init</li>
+      <li class="breadcrumb-item active">meshroom plug</li>
     <li class="wy-breadcrumbs-aside">
     </li>
   </ul>
@@ -114,18 +116,40 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
             <div class="section" itemprop="articleBody">
               
-                <h1 id="meshroom-init">meshroom init<a class="headerlink" href="#meshroom-init" title="Permanent link">&para;</a></h1>
+                <h1 id="meshroom-plug">meshroom plug<a class="headerlink" href="#meshroom-plug" title="Permanent link">&para;</a></h1>
 <div class="admonition usage">
 <p class="admonition-title">Usage</p>
-<p><strong>meshroom init</strong> [PATH]</p>
+<p><strong>meshroom plug</strong> [OPTIONS] SRC_INSTANCE DST_INSTANCE TOPIC</p>
 </div>
-<p>Initializes a new Meshroom project under <code>PATH</code>.</p>
+<p>Create a Plug between two instances. A compatible producer/consumer or trigger/executor pair of integrations must exist on the corresponding source and destination products for the given topic. Such mathcing integrations may be either:
+* explicitly implemented as integrations with setup hooks having <code>own_both=False</code>
+* explicitly implemented as an integration with a setup hook having <code>own_both=True</code> by one of the products
+* implicitly defined via generic setup hooks on one or both products.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+</div>
+<p>This doesn't setup the corresponding interop to your real product instance yet, it simply add its declaration to the project, ready for a subsequent <code>meshroom up</code>.</p>
+<h3 id="options">Options<a class="headerlink" href="#options" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>option</th>
+<th>description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>--mode [push|pull]</td>
+<td>Force the given plug operation mode</td>
+</tr>
+</tbody>
+</table>
               
             </div>
           </div><footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
-        <a href="../execute/" class="btn btn-neutral float-left" title="meshroom execute"><span class="icon icon-circle-arrow-left"></span> Previous</a>
-        <a href="../plug/" class="btn btn-neutral float-right" title="meshroom plug">Next <span class="icon icon-circle-arrow-right"></span></a>
+        <a href="../init/" class="btn btn-neutral float-left" title="meshroom init"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../produce/" class="btn btn-neutral float-right" title="meshroom produce">Next <span class="icon icon-circle-arrow-right"></span></a>
     </div>
 
   <hr/>
@@ -148,10 +172,10 @@
   <span class="rst-current-version" data-toggle="rst-current-version">
     
     
-      <span><a href="../execute/" style="color: #fcfcfc">&laquo; Previous</a></span>
+      <span><a href="../init/" style="color: #fcfcfc">&laquo; Previous</a></span>
     
     
-      <span><a href="../plug/" style="color: #fcfcfc">Next &raquo;</a></span>
+      <span><a href="../produce/" style="color: #fcfcfc">Next &raquo;</a></span>
     
   </span>
 </div>
