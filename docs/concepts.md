@@ -139,7 +139,7 @@ You can plug two Instances using
 
 and unplug an existing plug using
 
-`meshroom unplug <source_instance> <destination_instance> <topic> [options...]`
+`meshroom unplug <topic> <source_instance> <destination_instance> [options...]`
 
 Note that there can only be one plug at a time for each set of constraints. You can get several plugs on the same Instances pair for the same topic by narrowing their constraint sets.
 
