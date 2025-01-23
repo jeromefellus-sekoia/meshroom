@@ -1,7 +1,7 @@
 # meshroom plug
 
 !!! Usage
-    **meshroom plug** [OPTIONS] SRC_INSTANCE DST_INSTANCE TOPIC
+    **meshroom plug** [OPTIONS] TOPIC SRC_INSTANCE DST_INSTANCE
 
 Create a Plug between two instances. A compatible producer/consumer or trigger/executor pair of integrations must exist on the corresponding source and destination products for the given topic. Such mathcing integrations may be either:
 * explicitly implemented as integrations with setup hooks having `own_both=False`

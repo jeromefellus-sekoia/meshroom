@@ -188,23 +188,23 @@ def down(
 
 
 @meshroom.command()
+@click.argument("topic")
 @click.argument("src_instance", shell_complete=autocomplete_search(model.list_instances))
 @click.argument("dst_instance", shell_complete=autocomplete_search(model.list_instances))
-@click.argument("topic")
 @click.option("--mode", "-m", type=click.Choice(Mode.__args__), required=False)
 @click.option("--format", "-f", type=str, required=False)
 @click.option("--read-secret", "-s", multiple=True, help="Read a one-line secret from stdin (can be supplied multiple times)")
 def plug(
+    topic: str,
     src_instance: str,
     dst_instance: str,
-    topic: str,
     mode: Mode | None = None,
     format: str | None = None,
     read_secret: list[str] = [],
 ):
     """Connect two products via an existing integration"""
     try:
-        plug = model.plug(src_instance, dst_instance, topic, mode, format)
+        plug = model.plug(topic, src_instance, dst_instance, mode, format)
         _configure_plug(
             plug,
             secrets={secret: sys.stdin.readline().strip() for secret in read_secret},
@@ -362,7 +362,7 @@ def unplug(
     mode: Mode | None = None,
 ):
     """Disconnect an existing Plug between two Instances"""
-    model.unplug(src_instance, dst_instance, topic, mode)
+    model.unplug(topic, src_instance, dst_instance, mode)
 
 
 @meshroom.command()
@@ -378,7 +378,7 @@ def watch(
 ):
     """Inspect data flowing through a Plug or a Instance"""
     try:
-        for msg in model.watch(instance, dst_instance, topic, mode):
+        for msg in model.watch(topic, instance, dst_instance, mode):
             print(msg)
     except ValueError as e:
         error(e)
@@ -401,12 +401,12 @@ def produce(
     """Produce data through a Plug or to a Instance"""
     try:
         if dst_instance:
-            model.get_plug(instance, dst_instance, topic, mode)
+            model.get_plug(topic, instance, dst_instance, mode)
         else:
             model.get_instance(instance)
         debug("Waiting for events on standard input...\n")
         for line in sys.stdin:
-            print(model.produce(instance, dst_instance, topic, data=line.strip(), mode=mode))
+            print(model.produce(topic, instance, dst_instance, data=line.strip(), mode=mode))
     except ValueError as e:
         error(e)
         exit(1)
@@ -428,14 +428,14 @@ def execute(
     """Execute an executor exposed by a Plug's or a Instance's topic"""
     try:
         if dst_instance:
-            model.get_plug(instance, dst_instance, topic, mode)
+            model.get_plug(topic, instance, dst_instance, mode)
         else:
             model.get_instance(instance)
         print(
             model.execute(
+                topic,
                 instance,
                 dst_instance,
-                topic,
                 data={k: v for k, v in (p.split("=") for p in param)},
                 mode=mode,
             )
@@ -462,9 +462,9 @@ def trigger(
     try:
         print(
             model.trigger(
+                topic,
                 instance,
                 dst_instance,
-                topic,
                 data={k: v for k, v in (p.split("=") for p in param)},
                 mode=mode,
             )

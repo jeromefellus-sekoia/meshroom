@@ -1212,7 +1212,14 @@ def delete_instance(instance: str, product: str | None = None):
                 delete_instance(instance, product_dir.name)
 
 
-def plug(src_instance: str, dst_instance: str, topic: str, mode: Mode | None = None, format: str | None = None, owner: Literal["both"] | str | None = None):
+def plug(
+    topic: str,
+    src_instance: str,
+    dst_instance: str,
+    mode: Mode | None = None,
+    format: str | None = None,
+    owner: Literal["both"] | str | None = None,
+):
     """
     Create a new Plug between two Instances for a given topic
     The plug is created based on the available integrations between the products of the two instances:
@@ -1229,7 +1236,7 @@ def plug(src_instance: str, dst_instance: str, topic: str, mode: Mode | None = N
     dst = get_instance(dst_instance)
     try:
         # Check if the plug already exists (whatever the format)
-        plug = get_plug(src_instance, dst_instance, topic, mode)
+        plug = get_plug(topic, src_instance, dst_instance, mode)
         debug(f"🚫 Plug {plug}  already exists at {plug.path}")
         return plug
     except ValueError:
@@ -1336,9 +1343,9 @@ but couldn't find any @setup hook among matching integrations
 """)
 
 
-def unplug(src_instance: str, dst_instance: str, topic: str, mode: Mode | None = None):
+def unplug(topic: str, src_instance: str, dst_instance: str, mode: Mode | None = None):
     try:
-        get_plug(src_instance, dst_instance, topic, mode).delete()
+        get_plug(topic, src_instance, dst_instance, mode).delete()
     except ValueError:
         error(f"❌ Plug {src_instance} --[{topic}:{mode}]-> {dst_instance} not found")
 
@@ -1431,7 +1438,7 @@ def list_plugs(
                                 yield p
 
 
-def get_plug(src_instance: str, dst_instance: str, topic: str, mode: Mode | None = None):
+def get_plug(topic: str, src_instance: str, dst_instance: str, mode: Mode | None = None):
     for plug in list_plugs(src_instance, dst_instance, topic, mode):
         return plug
     raise ValueError(f"Plug {src_instance} --[{topic}]-> {dst_instance}  {mode or ''} not found")
@@ -1504,9 +1511,9 @@ def down(src_instance: str | None = None, dst_instance: str | None = None, topic
         plug.down()
 
 
-def watch(instance: str, dst_instance: str | None, topic: str, mode: Mode | None = None):
+def watch(topic: str, instance: str, dst_instance: str | None, mode: Mode | None = None):
     if dst_instance:
-        p = get_plug(instance, dst_instance, topic, mode)
+        p = get_plug(topic, instance, dst_instance, mode)
         w = p.watch()
         log(f"Watching plug {p} for {topic}", file=sys.stderr)
         return w
@@ -1517,23 +1524,23 @@ def watch(instance: str, dst_instance: str | None, topic: str, mode: Mode | None
         return w
 
 
-def produce(instance: str, dst_instance: str | None, topic: str, data: str | bytes, mode: Mode | None = None):
+def produce(topic: str, instance: str, dst_instance: str | None, data: str | bytes, mode: Mode | None = None):
     if dst_instance:
-        return get_plug(instance, dst_instance, topic, mode).produce(data)
+        return get_plug(topic, instance, dst_instance, mode).produce(data)
     else:
         return get_instance(instance).produce(topic, data, mode=mode)
 
 
-def trigger(instance: str, dst_instance: str | None, topic: str, data: dict | None = None, mode: Mode | None = None):
+def trigger(topic: str, instance: str, dst_instance: str | None, data: dict | None = None, mode: Mode | None = None):
     if dst_instance:
-        return get_plug(instance, dst_instance, topic, mode).trigger(data)
+        return get_plug(topic, instance, dst_instance, mode).trigger(data)
     else:
         return get_instance(instance).trigger(topic, data, mode=mode)
 
 
-def execute(instance: str, dst_instance: str | None, topic: str, data: dict | None = None, mode: Mode | None = None):
+def execute(topic: str, instance: str, dst_instance: str | None, data: dict | None = None, mode: Mode | None = None):
     if dst_instance:
-        return get_plug(instance, dst_instance, topic, mode).execute(data)
+        return get_plug(topic, instance, dst_instance, mode).execute(data)
     else:
         return get_instance(instance).execute(topic, data, mode=mode)
 

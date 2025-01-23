@@ -3,7 +3,7 @@ from meshroom.model import Integration, plug, set_project_dir
 
 def test_up():
     set_project_dir("tests/fixtures/project1")
-    p = plug("otherproduct", "myproduct", "stuff", "pull", "json")
+    p = plug("stuff", "otherproduct", "myproduct", "pull", "json")
     assert p.get_consumer() == Integration(
         product="myproduct",
         target_product="otherproduct",

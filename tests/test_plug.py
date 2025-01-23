@@ -37,20 +37,20 @@ def test_plug():
 
     # Cleanup any existing plug
     try:
-        unplug("otherproduct", "myproduct", "stuff", "pull")
+        unplug("stuff", "otherproduct", "myproduct", "pull")
     except ValueError:
         ...
 
     # Shouldn't be able to plug without a setup hook
     with pytest.raises(ValueError, match="couldn't find any @setup hook"):
-        plug("otherproduct", "myproduct", "stuff", "pull", "json", owner="otherproduct")
+        plug("stuff", "otherproduct", "myproduct", "pull", "json", owner="otherproduct")
 
-    p = plug("otherproduct", "myproduct", "stuff", "pull", "json")
+    p = plug("stuff", "otherproduct", "myproduct", "pull", "json")
 
     assert p == Plug(
+        topic="stuff",
         src_instance="otherproduct",
         dst_instance="myproduct",
-        topic="stuff",
         mode="pull",
         format="json",
         owner=None,
@@ -74,17 +74,17 @@ def test_plug():
     assert not b.owns_self
     assert list(list_plugs()) == [p]
 
-    assert get_plug("otherproduct", "myproduct", "stuff", "pull") == p
+    assert get_plug("stuff", "otherproduct", "myproduct", "pull") == p
 
     assert list(list_plugs("otherproduct", "myproduct")) == [p]
     assert list(list_plugs(topic="stuff")) == [p]
 
     # Replug should be nop
-    plug("otherproduct", "myproduct", "stuff", "pull", "json")
+    plug("stuff", "otherproduct", "myproduct", "pull", "json")
     assert list(list_plugs()) == [p]
 
-    unplug("otherproduct", "myproduct", "stuff", "pull")
+    unplug("stuff", "otherproduct", "myproduct", "pull")
 
     # After unplug, there should be no plugs
     with pytest.raises(ValueError):
-        get_plug("otherproduct", "myproduct", "stuff", "pull")
+        get_plug("stuff", "otherproduct", "myproduct", "pull")
