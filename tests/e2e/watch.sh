@@ -31,7 +31,7 @@ pass MESHROOM_SEKOIA_API_KEY | meshroom add sekoia -s API_KEY
 set -e
 
 meshroom add myproduct
-meshroom plug myproduct sekoia events
+meshroom plug events myproduct sekoia
 meshroom up
 
 # Produce multiple events

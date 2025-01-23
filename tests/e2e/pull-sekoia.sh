@@ -35,8 +35,8 @@ meshroom list integrations sekoia
 meshroom add apache_http_server
 meshroom add aws_vpc_flow_logs aws
 
-meshroom plug apache_http_server sekoia events
-meshroom plug aws sekoia events
+meshroom plug events apache_http_server sekoia
+meshroom plug events aws sekoia
 
 meshroom up
 

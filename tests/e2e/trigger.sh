@@ -31,7 +31,7 @@ pass MESHROOM_SEKOIA_API_KEY | meshroom add sekoia -s API_KEY
 set -e
 
 meshroom add cisa_gov
-meshroom plug sekoia cisa_gov action
+meshroom plug action sekoia cisa_gov
 
 # Add git remote to all syncing custom module from git repo
 set +e

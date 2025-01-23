@@ -135,7 +135,7 @@ When no matching constraint set can be found out of all existing Integrations, t
 
 You can plug two Instances using
 
-`meshroom plug <source_instance> <destination_instance> <topic> [options...]`
+`meshroom plug <topic> <source_instance> <destination_instance> [options...]`
 
 and unplug an existing plug using
 

@@ -31,7 +31,7 @@ set +e
 pass MESHROOM_SEKOIA_API_KEY | meshroom add sekoia -s API_KEY
 set -e
 meshroom add example
-meshroom plug example sekoia events
+meshroom plug events example sekoia
 
 # Push to github since sekoia.io can only pull custom automations from git
 git add .

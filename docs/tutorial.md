@@ -130,7 +130,7 @@ Let's create a suitable Integration for that:
 meshroom create integration myedr sekoia search_threat executor
 ```
 
-This created a `search_threat_executor.yaml` manifest under `products/myedr/integrations/sekoia/` to hold the integration-specific settings, in the same way we did at Product level. We can then add a `settings:` section akin to the Product's one. Upon `meshroom plug some_sekoia_instance some_myedr_instance search_threat`, because myedr has defined specific settings for the executor end of this Plug, the user we'll be prompted for necessary values.
+This created a `search_threat_executor.yaml` manifest under `products/myedr/integrations/sekoia/` to hold the integration-specific settings, in the same way we did at Product level. We can then add a `settings:` section akin to the Product's one. Upon `meshroom plug search_threat some_sekoia_instance some_myedr_instance`, because myedr has defined specific settings for the executor end of this Plug, the user we'll be prompted for necessary values.
 
 We thus demonstrated the basic concepts of:
 
@@ -161,8 +161,8 @@ Each call will prompt you for the required secrets and settings. At this stage, 
 Now, let's **plug** both products, so that mysekoia can consume myedr's events and myedr can execute mysekoia's queries for threat searches.
 
 ```bash
-meshroom plug myedr mysekoia events
-meshroom plug mysekoia myedr search_threat
+meshroom plug events myedr mysekoia
+meshroom plug search_threat mysekoia myedr
 ```
 
 Oh no ! Meshroom CLI tells us that it can't find an integration for the trigger side of the second plug. Indeed, we've defined how to setup a myedr plugin to execute threat searches, but no Sekoia.io integration to actually trigger it from Sekoia.
@@ -182,7 +182,7 @@ meshroom list integrations sekoia myedr
 Contrarily to the previous call to `meshroom create integration`, this has created many files under the `products/sekoia/integrations/myedr/` folder, where we may recognize an almost complete Sekoia.io custom playbook action as one can find examples at [https://github.com/SEKOIA-IO/automation-library](https://github.com/SEKOIA-IO/automation-library). This integration has been automatically scaffolded because Sekoia.io's vendor has defined a `@scaffold` hook for this kind of trigger. This hook generated all the boilerplate code required to build a custom playbook action that will trigger executions on 3rd-party APIs. All we need to do is to actually implement the TODOs left in the boilerplate. We won't cover this specific business here, but once you've coded your own logic, you can call again
 
 ```bash
-meshroom plug mysekoia myedr search_threat
+meshroom plug search_threat mysekoia myedr
 ```
 
 which should now succeed !

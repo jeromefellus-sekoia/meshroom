@@ -30,7 +30,7 @@ set +e
 pass MESHROOM_SEKOIA_API_KEY | meshroom add sekoia -s API_KEY
 set -e
 meshroom add example
-meshroom plug example sekoia events
+meshroom plug events example sekoia
 
 meshroom up
 
