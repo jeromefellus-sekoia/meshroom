@@ -26,7 +26,7 @@ from ...api import SekoiaAPI
 import yaml
 import json
 """)
-        integration.add_setup_step("Push action to git repo", git_push_automation_module, order=0)
+        integration.add_setup_step("Push action to git repo", git_push_automation_module, order=0, owns_both=True)
         integration.add_setup_step("Sync action from git repo", update_playbook_module_from_git, order=1)
 
     # Scaffold files from templates/action_trigger when they don't exist

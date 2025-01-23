@@ -1,7 +1,7 @@
 from pathlib import Path
 from pydantic import ValidationError
 
-from meshroom.interaction import debug, info, error
+from meshroom.interaction import info, error
 from meshroom.utils import tabulate
 from meshroom import __version__
 from meshroom.model import Mode, Plug, ProductSetting, Role, Instance
@@ -40,6 +40,7 @@ def autocomplete(func):
 @click.option("-v", "--version", is_flag=True, help="Show the version of Meshroom")
 def meshroom(path, version):
     """Meshroom - The Cybersecurity Mesh Assistant"""
+
     if version:
         print(__version__)
         exit(0)
@@ -57,12 +58,13 @@ def meshroom(path, version):
 
 @meshroom.command(help="Initialize a new Meshroom project")
 @click.argument("path", default=".", required=False)
-def init(path: str):
+@click.option("-d", "--debug", is_flag=True, help="Print debug information and stack traces on error")
+def init(path: str, debug: bool):
     """Initialize a new Meshroom project"""
     try:
         model.init_project(model.get_project_dir() / path if str(Path(path).absolute()) != path else path)
     except ValueError as e:
-        error(e)
+        error(e, debug)
         exit(1)
 
 
@@ -75,41 +77,47 @@ def _list():
 @_list.command(name="products")
 @click.option("--wide", "-w", is_flag=True, help="Show more details (consumes, produces, ...)")
 @click.argument("search", required=False)
-def list_products(wide: bool = False, search: str | None = None):
+@click.option("-d", "--debug", is_flag=True, help="Print debug information and stack traces on error")
+def list_products(wide: bool = False, search: str | None = None, debug: bool = False):
     """List all products"""
+    try:
+        wide_headers = {}
+        if wide:
+            wide_headers = [
+                {"Consumes": lambda x: x.list_capabilities("consumer")},
+                {"Produces": lambda x: x.list_capabilities("producer")},
+            ]
 
-    wide_headers = {}
-    if wide:
-        wide_headers = [
-            {"Consumes": lambda x: x.list_capabilities("consumer")},
-            {"Produces": lambda x: x.list_capabilities("producer")},
-        ]
-
-    print(
-        tabulate(
-            sorted(model.list_products(search=search), key=lambda x: x.name),
-            headers=[
-                "Name",
-                "Tags",
-                *wide_headers,
-                "Nb integrations",
-                "Instances",
-            ],
-            formatters={
-                Instance: lambda x: x.name,
-            },
+        print(
+            tabulate(
+                sorted(model.list_products(search=search), key=lambda x: x.name),
+                headers=[
+                    "Name",
+                    "Tags",
+                    *wide_headers,
+                    "Nb integrations",
+                    "Instances",
+                ],
+                formatters={
+                    Instance: lambda x: x.name,
+                },
+            )
         )
-    )
+    except Exception as e:
+        error(e, debug)
+        exit(1)
 
 
 @_list.command(name="integrations")
 @click.argument("product", required=False, shell_complete=autocomplete_search(model.list_products))
 @click.argument("target_product", required=False, shell_complete=autocomplete_search(model.list_products))
 @click.option("--topic", "-t", help="Filter by topic")
+@click.option("-d", "--debug", is_flag=True, help="Print debug information and stack traces on error")
 def list_integrations(
     product: str | None = None,
     target_product: str | None = None,
     topic: str | None = None,
+    debug: bool = False,
 ):
     """List all integrations"""
     try:
@@ -120,21 +128,30 @@ def list_integrations(
             )
         )
     except ValueError as e:
-        error(e)
+        error(e, debug)
         exit(1)
 
 
 @_list.command(name="instances")
 @click.argument("search", required=False)
 @click.option("--product", "-p", help="Filter by product", shell_complete=autocomplete_search(model.list_products))
-def list_instances(product: str | None = None, search: str | None = None):
+@click.option("-d", "--debug", is_flag=True, help="Print debug information and stack traces on error")
+def list_instances(
+    product: str | None = None,
+    search: str | None = None,
+    debug: bool = False,
+):
     """List all instances"""
-    print(
-        tabulate(
-            sorted(model.list_instances(product=product, search=search), key=lambda x: (x.product, x.name)),
-            headers=["Name", "Product", "Plugs"],
+    try:
+        print(
+            tabulate(
+                sorted(model.list_instances(product=product, search=search), key=lambda x: (x.product, x.name)),
+                headers=["Name", "Product", "Plugs"],
+            )
         )
-    )
+    except Exception as e:
+        error(e, debug)
+        exit(1)
 
 
 @_list.command(name="plugs")
@@ -142,19 +159,25 @@ def list_instances(product: str | None = None, search: str | None = None):
 @click.argument("dst_instance", required=False, shell_complete=autocomplete_search(model.list_instances))
 @click.option("--topic", "-t", required=False)
 @click.option("--mode", "-m", type=click.Choice(Mode.__args__), required=False)
+@click.option("-d", "--debug", is_flag=True, help="Print debug information and stack traces on error")
 def list_plugs(
     src_instance: str | None = None,
     dst_instance: str | None = None,
     topic: str | None = None,
     mode: Mode | None = None,
+    debug: bool = False,
 ):
     """List all plugs"""
-    print(
-        tabulate(
-            sorted(model.list_plugs(src_instance=src_instance, dst_instance=dst_instance, topic=topic, mode=mode), key=lambda x: (x.src_instance, x.dst_instance)),
-            headers=["Src Instance", "Dst Instance", "Topic", "Mode", "Format"],
+    try:
+        print(
+            tabulate(
+                sorted(model.list_plugs(src_instance=src_instance, dst_instance=dst_instance, topic=topic, mode=mode), key=lambda x: (x.src_instance, x.dst_instance)),
+                headers=["Src Instance", "Dst Instance", "Topic", "Mode", "Format"],
+            )
         )
-    )
+    except Exception as e:
+        error(e, debug)
+        exit(1)
 
 
 @meshroom.command()
@@ -162,14 +185,20 @@ def list_plugs(
 @click.argument("target_instance", required=False, shell_complete=autocomplete_search(model.list_instances))
 @click.argument("topic", required=False)
 @click.argument("mode", required=False, type=click.Choice(Mode.__args__))
+@click.option("-d", "--debug", is_flag=True, help="Print debug information and stack traces on error")
 def up(
     instance: str | None = None,
     target_instance: str | None = None,
     topic: str | None = None,
     mode: Mode | None = None,
+    debug: bool = False,
 ):
     """Setup all declared Instances, a single Instance or a single Plug"""
-    model.up(instance, target_instance, topic, mode)
+    try:
+        model.up(instance, target_instance, topic, mode)
+    except Exception as e:
+        error(e, debug)
+        exit(1)
 
 
 @meshroom.command()
@@ -177,14 +206,20 @@ def up(
 @click.argument("target_instance", required=False, shell_complete=autocomplete_search(model.list_instances))
 @click.argument("topic", required=False)
 @click.argument("mode", required=False, type=click.Choice(Mode.__args__))
+@click.option("-d", "--debug", is_flag=True, help="Print debug information and stack traces on error")
 def down(
     instance: str | None = None,
     target_instance: str | None = None,
     topic: str | None = None,
     mode: Mode | None = None,
+    debug: bool = False,
 ):
     """Unconfigure all Instances, a single Instance or a single Plug"""
-    model.down(instance, target_instance, topic, mode)
+    try:
+        model.down(instance, target_instance, topic, mode)
+    except Exception as e:
+        error(e, debug)
+        exit(1)
 
 
 @meshroom.command()
@@ -194,6 +229,7 @@ def down(
 @click.option("--mode", "-m", type=click.Choice(Mode.__args__), required=False)
 @click.option("--format", "-f", type=str, required=False)
 @click.option("--read-secret", "-s", multiple=True, help="Read a one-line secret from stdin (can be supplied multiple times)")
+@click.option("-d", "--debug", is_flag=True, help="Print debug information and stack traces on error")
 def plug(
     topic: str,
     src_instance: str,
@@ -201,6 +237,7 @@ def plug(
     mode: Mode | None = None,
     format: str | None = None,
     read_secret: list[str] = [],
+    debug: bool = False,
 ):
     """Connect two products via an existing integration"""
     try:
@@ -210,7 +247,7 @@ def plug(
             secrets={secret: sys.stdin.readline().strip() for secret in read_secret},
         )
     except ValueError as e:
-        error(e)
+        error(e, debug)
         exit(1)
 
 
@@ -227,6 +264,7 @@ def create():
 @click.argument("role", type=click.Choice(Role.__args__))
 @click.option("--mode", type=click.Choice(Mode.__args__), default="push")
 @click.option("--format", "-f")
+@click.option("-d", "--debug", is_flag=True, help="Print debug information and stack traces on error")
 def create_integration(
     product: str,
     target_product: str,
@@ -234,34 +272,41 @@ def create_integration(
     role: Role,
     mode: Mode,
     format: str | None = None,
+    debug: bool = False,
 ):
     """Scaffold a new Integration"""
-    # First scaffold the products capabilities if it doesn't exist
-    model.scaffold_capability(product, topic, role, mode, format)
-    model.scaffold_capability(
-        target_product,
-        topic,
-        # Create the complementary capability
-        {"consumer": "producer", "producer": "consumer", "executor": "trigger", "trigger": "executor"}[role],
-        mode,
-        format,
-    )
-    # Then create the integration itself
-    model.scaffold_integration(product, target_product, topic, role, mode, format)
+    try:
+        # First scaffold the products capabilities if it doesn't exist
+        model.scaffold_capability(product, topic, role, mode, format)
+        model.scaffold_capability(
+            target_product,
+            topic,
+            # Create the complementary capability
+            {"consumer": "producer", "producer": "consumer", "executor": "trigger", "trigger": "executor"}[role],
+            mode,
+            format,
+        )
+        # Then create the integration itself
+        model.scaffold_integration(product, target_product, topic, role, mode, format)
+    except Exception as e:
+        error(e, debug)
+        exit(1)
 
 
 @create.command(name="product")
 @click.argument("name")
 @click.option("--from", "template", help="Path to a templates/ subdirectory to scaffold the product from")
+@click.option("-d", "--debug", is_flag=True, help="Print debug information and stack traces on error")
 def create_product(
     name: str,
     template: str | None = None,
+    debug: bool = False,
 ):
     """Scaffold a new Product, optionally from a template"""
     try:
         model.scaffold_product(name, template=template)
     except ValidationError as e:
-        error(e)
+        error(e, debug)
         exit(1)
 
 
@@ -271,38 +316,48 @@ def create_product(
 @click.argument("role", type=click.Choice(Role.__args__))
 @click.option("--mode", "-m", type=click.Choice(Mode.__args__), default="push")
 @click.option("--format", "-f")
+@click.option("-d", "--debug", is_flag=True, help="Print debug information and stack traces on error")
 def create_capability(
     product: str,
     topic: str,
     role: Role,
     mode: Mode,
     format: str | None = None,
+    debug: bool = False,
 ):
     """Scaffold a new product Capability"""
-    model.scaffold_capability(product, topic, role, mode, format)
+    try:
+        model.scaffold_capability(product, topic, role, mode, format)
+    except Exception as e:
+        error(e, debug)
+        exit(1)
 
 
 @meshroom.command()
 @click.argument("product", shell_complete=autocomplete_search(model.list_products))
+@click.option("-d", "--debug", is_flag=True, help="Print debug information and stack traces on error")
 def pull(
     product: str,
+    debug: bool = False,
 ):
     """Pull a product's SDK from its repository"""
-    # try:
-    model.get_product(product).pull()
-    # except ValueError as e:
-    #     error(e)
-    #     exit(1)
+    try:
+        model.get_product(product).pull()
+    except Exception as e:
+        error(e, debug)
+        exit(1)
 
 
 @meshroom.command()
 @click.argument("product", shell_complete=autocomplete_search(model.list_products))
 @click.argument("name", required=False)
 @click.option("--read-secret", "-s", multiple=True, help="Read a one-line secret from stdin (can be supplied multiple times)")
+@click.option("-d", "--debug", is_flag=True, help="Print debug information and stack traces on error")
 def add(
     product: str,
     name: str | None = None,
     read_secret: list[str] = [],
+    debug: bool = False,
 ):
     """Add a new Instance for a given Product"""
     try:
@@ -314,16 +369,18 @@ def add(
         info("✓ Instance created")
 
     except ValueError as e:
-        error(e)
+        error(e, debug)
         exit(1)
 
 
 @meshroom.command()
 @click.argument("instance", shell_complete=autocomplete_search(model.list_instances))
 @click.option("--read-secret", "-s", multiple=True, help="Read a one-line secret from stdin (can be supplied multiple times)")
+@click.option("-d", "--debug", is_flag=True, help="Print debug information and stack traces on error")
 def configure(
     instance: str,
     read_secret: list[str] = [],
+    debug: bool = False,
 ):
     """Reconfigure an existing Instance"""
     try:
@@ -335,19 +392,25 @@ def configure(
         info("✓ Instance configured")
 
     except ValueError as e:
-        error(e)
+        error(e, debug)
         exit(1)
 
 
 @meshroom.command()
 @click.argument("instance", shell_complete=autocomplete_search(model.list_instances))
 @click.argument("product", required=False)
+@click.option("-d", "--debug", is_flag=True, help="Print debug information and stack traces on error")
 def remove(
     instance: str,
     product: str | None = None,
+    debug: bool = False,
 ):
     """Remove a Instance for a given Product"""
-    model.delete_instance(instance, product)
+    try:
+        model.delete_instance(instance, product)
+    except Exception as e:
+        error(e, debug)
+        exit(1)
 
 
 @meshroom.command()
@@ -355,14 +418,20 @@ def remove(
 @click.argument("src_instance", shell_complete=autocomplete_search(model.list_instances))
 @click.argument("dst_instance", shell_complete=autocomplete_search(model.list_instances))
 @click.option("--mode", type=click.Choice(Mode.__args__))
+@click.option("-d", "--debug", is_flag=True, help="Print debug information and stack traces on error")
 def unplug(
     topic: str,
     src_instance: str,
     dst_instance: str,
     mode: Mode | None = None,
+    debug: bool = False,
 ):
     """Disconnect an existing Plug between two Instances"""
-    model.unplug(topic, src_instance, dst_instance, mode)
+    try:
+        model.unplug(topic, src_instance, dst_instance, mode)
+    except Exception as e:
+        error(e, debug)
+        exit(1)
 
 
 @meshroom.command()
@@ -370,18 +439,20 @@ def unplug(
 @click.argument("instance", shell_complete=autocomplete_search(model.list_instances))
 @click.argument("dst_instance", required=False, shell_complete=autocomplete_search(model.list_instances))
 @click.option("--mode", type=click.Choice(Mode.__args__))
+@click.option("-d", "--debug", is_flag=True, help="Print debug information and stack traces on error")
 def watch(
     topic: str,
     instance: str,
     dst_instance: str | None,
     mode: Mode | None,
+    debug: bool = False,
 ):
     """Inspect data flowing through a Plug or a Instance"""
     try:
         for msg in model.watch(topic, instance, dst_instance, mode):
             print(msg)
     except ValueError as e:
-        error(e)
+        error(e, debug)
         exit(1)
     except KeyboardInterrupt:
         ...
@@ -392,11 +463,13 @@ def watch(
 @click.argument("instance", shell_complete=autocomplete_search(model.list_instances))
 @click.argument("dst_instance", required=False, shell_complete=autocomplete_search(model.list_instances))
 @click.option("--mode", type=click.Choice(Mode.__args__))
+@click.option("-d", "--debug", is_flag=True, help="Print debug information and stack traces on error")
 def produce(
     topic: str,
     instance: str,
     dst_instance: str | None = None,
     mode: Mode | None = None,
+    debug: bool = False,
 ):
     """Produce data through a Plug or to a Instance"""
     try:
@@ -408,7 +481,7 @@ def produce(
         for line in sys.stdin:
             print(model.produce(topic, instance, dst_instance, data=line.strip(), mode=mode))
     except ValueError as e:
-        error(e)
+        error(e, debug)
         exit(1)
 
 
@@ -418,12 +491,14 @@ def produce(
 @click.argument("dst_instance", required=False, shell_complete=autocomplete_search(model.list_instances))
 @click.option("--mode", type=click.Choice(Mode.__args__))
 @click.option("--param", "-p", multiple=True)
+@click.option("-d", "--debug", is_flag=True, help="Print debug information and stack traces on error")
 def execute(
     topic: str,
     instance: str,
     dst_instance: str | None = None,
     mode: Mode | None = None,
     param: list[str] = [],
+    debug: bool = False,
 ):
     """Execute an executor exposed by a Plug's or a Instance's topic"""
     try:
@@ -441,7 +516,7 @@ def execute(
             )
         )
     except ValueError as e:
-        error(e)
+        error(e, debug)
         exit(1)
 
 
@@ -451,12 +526,14 @@ def execute(
 @click.argument("dst_instance", required=False, shell_complete=autocomplete_search(model.list_instances))
 @click.option("--mode", type=click.Choice(Mode.__args__))
 @click.option("--param", "-p", multiple=True)
+@click.option("-d", "--debug", is_flag=True, help="Print debug information and stack traces on error")
 def trigger(
     topic: str,
     instance: str,
     dst_instance: str | None = None,
     mode: Mode | None = None,
     param: list[str] = [],
+    debug: bool = False,
 ):
     """Trigger an trigger exposed by a Plug's or a Instance's topic"""
     try:
@@ -470,7 +547,7 @@ def trigger(
             )
         )
     except ValueError as e:
-        error(e)
+        error(e, debug)
         exit(1)
 
 
@@ -481,6 +558,7 @@ def trigger(
 @click.argument("role", type=click.Choice(Role.__args__), required=False)
 @click.option("--mode", "-m", type=click.Choice(Mode.__args__))
 @click.option("--format", "-f")
+@click.option("-d", "--debug", is_flag=True, help="Print debug information and stack traces on error")
 def publish(
     product: str,
     target_product: str | None = None,
@@ -488,6 +566,7 @@ def publish(
     role: Role | None = None,
     mode: Mode | None = None,
     format: str | None = None,
+    debug: bool = False,
 ):
     """
     Publish a specific integration, a given product's integrations or all integrations at once
@@ -496,7 +575,7 @@ def publish(
     try:
         model.publish(product, target_product, topic, role, mode, format)
     except ValueError as e:
-        error(e)
+        error(e, debug)
         exit(1)
 
 
