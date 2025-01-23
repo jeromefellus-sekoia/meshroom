@@ -1,6 +1,7 @@
 from pathlib import Path
 from pydantic import ValidationError
 
+from meshroom import interaction
 from meshroom.interaction import info, error
 from meshroom.utils import tabulate
 from meshroom import __version__
@@ -64,7 +65,7 @@ def init(path: str, debug: bool):
     try:
         model.init_project(model.get_project_dir() / path if str(Path(path).absolute()) != path else path)
     except ValueError as e:
-        error(e, debug)
+        error(e, debug=debug)
         exit(1)
 
 
@@ -104,7 +105,7 @@ def list_products(wide: bool = False, search: str | None = None, debug: bool = F
             )
         )
     except Exception as e:
-        error(e, debug)
+        error(e, debug=debug)
         exit(1)
 
 
@@ -128,7 +129,7 @@ def list_integrations(
             )
         )
     except ValueError as e:
-        error(e, debug)
+        error(e, debug=debug)
         exit(1)
 
 
@@ -150,7 +151,7 @@ def list_instances(
             )
         )
     except Exception as e:
-        error(e, debug)
+        error(e, debug=debug)
         exit(1)
 
 
@@ -176,7 +177,7 @@ def list_plugs(
             )
         )
     except Exception as e:
-        error(e, debug)
+        error(e, debug=debug)
         exit(1)
 
 
@@ -197,7 +198,7 @@ def up(
     try:
         model.up(instance, target_instance, topic, mode)
     except Exception as e:
-        error(e, debug)
+        error(e, debug=debug)
         exit(1)
 
 
@@ -218,7 +219,7 @@ def down(
     try:
         model.down(instance, target_instance, topic, mode)
     except Exception as e:
-        error(e, debug)
+        error(e, debug=debug)
         exit(1)
 
 
@@ -247,7 +248,7 @@ def plug(
             secrets={secret: sys.stdin.readline().strip() for secret in read_secret},
         )
     except ValueError as e:
-        error(e, debug)
+        error(e, debug=debug)
         exit(1)
 
 
@@ -289,7 +290,7 @@ def create_integration(
         # Then create the integration itself
         model.scaffold_integration(product, target_product, topic, role, mode, format)
     except Exception as e:
-        error(e, debug)
+        error(e, debug=debug)
         exit(1)
 
 
@@ -306,7 +307,7 @@ def create_product(
     try:
         model.scaffold_product(name, template=template)
     except ValidationError as e:
-        error(e, debug)
+        error(e, debug=debug)
         exit(1)
 
 
@@ -329,7 +330,7 @@ def create_capability(
     try:
         model.scaffold_capability(product, topic, role, mode, format)
     except Exception as e:
-        error(e, debug)
+        error(e, debug=debug)
         exit(1)
 
 
@@ -344,7 +345,7 @@ def pull(
     try:
         model.get_product(product).pull()
     except Exception as e:
-        error(e, debug)
+        error(e, debug=debug)
         exit(1)
 
 
@@ -369,7 +370,7 @@ def add(
         info("✓ Instance created")
 
     except ValueError as e:
-        error(e, debug)
+        error(e, debug=debug)
         exit(1)
 
 
@@ -392,7 +393,7 @@ def configure(
         info("✓ Instance configured")
 
     except ValueError as e:
-        error(e, debug)
+        error(e, debug=debug)
         exit(1)
 
 
@@ -409,7 +410,7 @@ def remove(
     try:
         model.delete_instance(instance, product)
     except Exception as e:
-        error(e, debug)
+        error(e, debug=debug)
         exit(1)
 
 
@@ -430,7 +431,7 @@ def unplug(
     try:
         model.unplug(topic, src_instance, dst_instance, mode)
     except Exception as e:
-        error(e, debug)
+        error(e, debug=debug)
         exit(1)
 
 
@@ -452,7 +453,7 @@ def watch(
         for msg in model.watch(topic, instance, dst_instance, mode):
             print(msg)
     except ValueError as e:
-        error(e, debug)
+        error(e, debug=debug)
         exit(1)
     except KeyboardInterrupt:
         ...
@@ -477,11 +478,11 @@ def produce(
             model.get_plug(topic, instance, dst_instance, mode)
         else:
             model.get_instance(instance)
-        debug("Waiting for events on standard input...\n")
+        interaction.debug("Waiting for events on standard input...\n")
         for line in sys.stdin:
             print(model.produce(topic, instance, dst_instance, data=line.strip(), mode=mode))
     except ValueError as e:
-        error(e, debug)
+        error(e, debug=debug)
         exit(1)
 
 
@@ -516,7 +517,7 @@ def execute(
             )
         )
     except ValueError as e:
-        error(e, debug)
+        error(e, debug=debug)
         exit(1)
 
 
@@ -547,7 +548,7 @@ def trigger(
             )
         )
     except ValueError as e:
-        error(e, debug)
+        error(e, debug=debug)
         exit(1)
 
 
@@ -575,7 +576,7 @@ def publish(
     try:
         model.publish(product, target_product, topic, role, mode, format)
     except ValueError as e:
-        error(e, debug)
+        error(e, debug=debug)
         exit(1)
 
 

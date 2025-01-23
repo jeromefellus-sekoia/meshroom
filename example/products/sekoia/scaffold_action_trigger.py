@@ -4,7 +4,7 @@ from meshroom.decorators import scaffold_trigger
 from .api import SekoiaAPI
 
 
-@scaffold_trigger("action")
+@scaffold_trigger()
 def scaffold_custom_action_trigger(integration: Integration):
     """Scaffold a new action trigger backed by a custom Sekoia.io automation action"""
     from meshroom.template import generate_files_from_template

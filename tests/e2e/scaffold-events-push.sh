@@ -25,6 +25,9 @@ meshroom create product example
 meshroom create integration sekoia example events consumer --mode=push
 meshroom create capability example events producer --mode=push --format=json
 
+# Make our example->sekoia integration be fully owned by sekoia (owns_both=True)
+sed -i 's/owns_both=False/owns_both=True/' products/sekoia/integrations/example/events_consumer.py
+
 # Create instances and plug them
 set +e
 pass MESHROOM_SEKOIA_API_KEY | meshroom add sekoia -s API_KEY

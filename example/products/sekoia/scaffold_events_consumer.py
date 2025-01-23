@@ -39,7 +39,7 @@ import json
 
         # Since the intake format is not part of Sekoia.io catalog, prepend a setup step to
         # create the custom intake format into the Instance
-        integration.add_setup_step(f"Create custom intake format '{name}'", create_custom_intake_format, order=2)
+        integration.add_setup_step(f"Create custom intake format '{name}'", create_custom_intake_format, order=2, owns_both=True)
 
         # Then we can instanciate the actual intake
         integration.add_setup_step(f"Create intake '{name}'", create_intake_key, order=3)

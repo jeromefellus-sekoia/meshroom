@@ -1,5 +1,6 @@
 from getpass import getpass
 import os
+import traceback
 import click
 
 
@@ -20,13 +21,15 @@ def info(message: str, *rest):
     click.echo(click.style("\n" + message, fg="green", bold=True))
 
 
-def error(message: str | Exception, *rest):
+def error(message: str | Exception, *rest, debug: bool = False):
     """Display an error message to the console"""
     if isinstance(message, Exception):
         message = str(message)
     for r in rest:
         message += f" {r}"
     click.echo(click.style(message + "\n", fg="red", bold=True))
+    if debug and isinstance(message, Exception):
+        click.echo("\n" + "".join(traceback.format_exception(None, message, message.__traceback__)))
 
 
 def log(message: str, *rest, file=None):

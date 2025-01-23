@@ -103,6 +103,9 @@ meshroom create integration sekoia myedr search_threat trigger --mode=push
 # and confirm it worked
 meshroom list integrations sekoia myedr
 
+# Make our sekoia->myedr integration be fully owned by sekoia (owns_both=True)
+sed -i 's/owns_both=False/owns_both=True/' products/sekoia/integrations/myedr/search_threat_trigger.py
+
 # Contrarily to the previous call to `meshroom create integration`, this has created many files under the `products/sekoia/integrations/myedr/` folder, where we may recognize an almost complete Sekoia.io custom playbook action as one can find examples at [https://github.com/SEKOIA-IO/automation-library](https://github.com/SEKOIA-IO/automation-library). This integration has been automatically scaffolded because Sekoia.io's vendor has defined a `@scaffold` hook for this kind of trigger. This hook generated all the boilerplate code required to build a custom playbook action that will trigger executions on 3rd-party APIs. All we need to do is to actually implement the TODOs left in the boilerplate. We won't cover this specific business here, but once you've coded your own logic, you can call again
 meshroom plug search_threat mysekoia myedr
 
