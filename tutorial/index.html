@@ -221,7 +221,7 @@ def setup_threat_search_api_via_myedr_plugin(integration: Integration, plug: Plu
 <p>Let's create a suitable Integration for that:</p>
 <pre><code class="language-bash">meshroom create integration myedr sekoia search_threat executor
 </code></pre>
-<p>This created a <code>search_threat_executor.yaml</code> manifest under <code>products/myedr/integrations/sekoia/</code> to hold the integration-specific settings, in the same way we did at Product level. We can then add a <code>settings:</code> section akin to the Product's one. Upon <code>meshroom plug some_sekoia_instance some_myedr_instance search_threat</code>, because myedr has defined specific settings for the executor end of this Plug, the user we'll be prompted for necessary values.</p>
+<p>This created a <code>search_threat_executor.yaml</code> manifest under <code>products/myedr/integrations/sekoia/</code> to hold the integration-specific settings, in the same way we did at Product level. We can then add a <code>settings:</code> section akin to the Product's one. Upon <code>meshroom plug search_threat some_sekoia_instance some_myedr_instance</code>, because myedr has defined specific settings for the executor end of this Plug, the user we'll be prompted for necessary values.</p>
 <p>We thus demonstrated the basic concepts of:</p>
 <ul>
 <li>hooks</li>
@@ -243,8 +243,8 @@ meshroom add myedr
 </code></pre>
 <p>Each call will prompt you for the required secrets and settings. At this stage, nothing is submitted yet to the actual tenants, meshroom only created the <code>instances/sekoia/mysekoia/...</code> files and wrote all secrets to <code>secrets.gpg</code>, ready for calling <code>meshroom up</code></p>
 <p>Now, let's <strong>plug</strong> both products, so that mysekoia can consume myedr's events and myedr can execute mysekoia's queries for threat searches.</p>
-<pre><code class="language-bash">meshroom plug myedr mysekoia events
-meshroom plug mysekoia myedr search_threat
+<pre><code class="language-bash">meshroom plug events myedr mysekoia
+meshroom plug search_threat mysekoia myedr
 </code></pre>
 <p>Oh no ! Meshroom CLI tells us that it can't find an integration for the trigger side of the second plug. Indeed, we've defined how to setup a myedr plugin to execute threat searches, but no Sekoia.io integration to actually trigger it from Sekoia.</p>
 <p>Let's fix that</p>
@@ -254,7 +254,7 @@ meshroom plug mysekoia myedr search_threat
 <pre><code class="language-bash">meshroom list integrations sekoia myedr
 </code></pre>
 <p>Contrarily to the previous call to <code>meshroom create integration</code>, this has created many files under the <code>products/sekoia/integrations/myedr/</code> folder, where we may recognize an almost complete Sekoia.io custom playbook action as one can find examples at <a href="https://github.com/SEKOIA-IO/automation-library">https://github.com/SEKOIA-IO/automation-library</a>. This integration has been automatically scaffolded because Sekoia.io's vendor has defined a <code>@scaffold</code> hook for this kind of trigger. This hook generated all the boilerplate code required to build a custom playbook action that will trigger executions on 3rd-party APIs. All we need to do is to actually implement the TODOs left in the boilerplate. We won't cover this specific business here, but once you've coded your own logic, you can call again</p>
-<pre><code class="language-bash">meshroom plug mysekoia myedr search_threat
+<pre><code class="language-bash">meshroom plug search_threat mysekoia myedr
 </code></pre>
 <p>which should now succeed !</p>
 <pre><code class="language-bash">meshroom list instances
