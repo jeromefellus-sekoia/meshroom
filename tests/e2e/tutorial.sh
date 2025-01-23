@@ -88,7 +88,7 @@ meshroom list integrations myedr
 
 ### 3. Create a mesh
 
-echo "plop" | meshroom add sekoia mysekoia -s API_KEY
+pass MESHROOM_SEKOIA_API_KEY | meshroom add sekoia mysekoia -s API_KEY
 echo "plop" | meshroom add myedr -s API_KEY
 
 # Now, let's **plug** both products, so that mysekoia can consume myedr's events and myedr can execute mysekoia's queries for threat searches.
@@ -109,11 +109,16 @@ sed -i 's/owns_both=False/owns_both=True/' products/sekoia/integrations/myedr/se
 # Contrarily to the previous call to `meshroom create integration`, this has created many files under the `products/sekoia/integrations/myedr/` folder, where we may recognize an almost complete Sekoia.io custom playbook action as one can find examples at [https://github.com/SEKOIA-IO/automation-library](https://github.com/SEKOIA-IO/automation-library). This integration has been automatically scaffolded because Sekoia.io's vendor has defined a `@scaffold` hook for this kind of trigger. This hook generated all the boilerplate code required to build a custom playbook action that will trigger executions on 3rd-party APIs. All we need to do is to actually implement the TODOs left in the boilerplate. We won't cover this specific business here, but once you've coded your own logic, you can call again
 meshroom plug search_threat mysekoia myedr
 
-#TODO FIX ME !!!
-
 # should then show 2 instances and 1 plug connecting them.
 meshroom list instances
 meshroom list plugs
+
+# Let's commit our work to some git repository
+git add .
+git commit -a -m "Initial commit"
+git remote add origin git@github.com:jeromefellus-sekoia/test-meshroom-custom-integration1.git
+git branch
+git push -f -u origin master
 
 ### 4. Meshroom up 🎉 !
 
