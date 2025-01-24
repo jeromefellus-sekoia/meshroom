@@ -4,6 +4,7 @@
 cd $(dirname $0)/../..
 rm -rf tests/e2e/data
 
+# ECHO
 
 ### 0. Setup a meshroom project
 
@@ -29,7 +30,7 @@ rm -rf tmp tmp.tar.gz
 # Happily, the sekoia product contains `@pull` hooks, allowing us to gather from Sekoia's official catalog the whole set of integrations available between Sekoia.io and 3rd-party products (here, so-called intake formats and playbook actions). Calling
 meshroom pull sekoia
 
-# yields dozen of new products along with their own capabilities to the extent of what Sekoia.io can interop with. You'd probably need to gather and pull more product knowledge to enrich those 3rd-party product definitions and reach a sufficiently large and accurate capabilities graph to start instantiating a mesh from it.
+# yields dozens of new products along with their own capabilities to the extent of what Sekoia.io can interop with. You'd probably need to gather and pull more product knowledge to enrich those 3rd-party product definitions and reach a sufficiently large and accurate capabilities graph to start instantiating a mesh from it.
 meshroom list products
 
 ### 2. Integrate your product
@@ -79,8 +80,12 @@ settings:
     default: whatever
 EOF
 
-# Let's create a suitable Integration for that:
+# Let's create a suitable Integrations for that:
 meshroom create integration myedr sekoia search_threat executor
+meshroom create integration sekoia myedr events consumer --mode=push
+
+# Meshroom has generated some files in products/sekoia/integrations/myedr folder, via Sekoia's @scaffold hook
+# We can now implement the TODOs in those files to actually implement the logic of the integrations.
 
 # We can confirm the existence of our new product and integrations via
 meshroom list products mye
@@ -126,8 +131,11 @@ git push -f -u origin master
 meshroom up
 
 # To check everything works as expected, we can use two handy commands :
-meshroom produce events myedr mysekoia
-meshroom watch events myedr mysekoia
+meshroom produce events myedr mysekoia <<EOF
+{"activity_id": 1, "actor": {}, "process": {"cmd_line": "C:\\Windows\\system32\\wbem\\wmiprvse.exe -secured -Embedding", "created_time": 1732710936360, "file": {"type_id": 1, "hashes": [{"algorithm_id": 2, "value": "6bd539a3ab1f70081c9d99b9404826d757adc934", "algorithm": "SHA-1"}, {"algorithm_id": 3, "value": "6f2499d3a5b0ebf18dedc0b4ef0bfa2d72289bf593de53ca845e7c708f8f2098", "algorithm": "SHA-256"}, {"algorithm_id": 1, "value": "a138504be4fa90963d07bc1e277e874d", "algorithm": "MD5"}], "name": "WmiPrvSE.exe", "path": "C:\\Windows\\System32\\wbem\\WmiPrvSE.exe", "signature": {"algorithm_id": 99, "algorithm": "Other", "certificate": {"fingerprints": [{"algorithm_id": 3, "value": "e866d202865ed3d83c35dff4cde3a2d0fc1d2b17c084e8b26dd0ca28a8c75cfb", "algorithm": "SHA-256"}, {"algorithm_id": 1, "value": "ff82bc38e1da5e596df374c53e3617f7eda36b06", "algorithm": "MD5"}], "issuer": "Microsoft Windows Production PCA 2011", "serial_number": "330000023241fb59996dcc4dff000000000232", "subject": "Microsoft Windows"}, "state": "Valid", "state_id": 1}, "size": 496128, "type": "Regular File"}, "integrity": "System", "integrity_id": 5, "lineage": ["C:\\Windows\\System32\\svchost.exe", "C:\\Windows\\System32\\services.exe", "C:\\Windows\\System32\\wininit.exe"], "name": "WmiPrvSE.exe", "parent_process": {"cmd_line": "C:\\Windows\\system32\\svchost.exe -k DcomLaunch -p", "file": {"type_id": 1, "name": "svchost.exe", "path": "C:\\Windows\\System32\\svchost.exe", "type": "Regular File"}, "integrity": "System", "name": "svchost.exe", "parent_process": {"cmd_line": "C:\\Windows\\system32\\services.exe", "file": {"type_id": 1, "name": "services.exe", "path": "C:\\Windows\\System32\\services.exe", "type": "Regular File"}, "integrity": "System", "name": "services.exe", "uid": "4de77ae9-0aca-4626-bc02-00c357a01d93"}, "pid": 880, "uid": "4de77ae9-0aca-4626-7003-00f198123c19"}, "pid": 584, "uid": "4de77ae9-0aca-4626-4802-00e84f9c9b8f", "user": {"name": "NT AUTHORITY\\NETWORK SERVICE", "uid": "S-1-5-20"}}, "device": {"hostname": "hlab-windows-10", "type": "Desktop", "type_id": 2, "agent_list": [{"type_id": 1, "type": "Endpoint Detection and Response", "uid": "7198e7a9-0aca-4626-b136-01f7990cf2a4", "version": "9.11.0-c5baf8685a-dirty", "vendor_name": "Harfanglab", "name": "hurukai"}], "os": {"name": "Windows 10 Enterprise", "type_id": 100, "build": "10.0.19041", "type": "Windows", "version": "Windows 10 Enterprise"}}, "category_uid": 1, "class_uid": 1007, "metadata": {"product": {"vendor_name": "Harfanglab", "name": "hurukai", "uid": "cd135f97-c437-4e26-b489-7fb7f6a59ebf", "version": "9.11.0"}, "version": "1.3.0", "tenant_uid": "123456"}, "severity_id": 0, "time": 1732710936360, "type_uid": 100701}
+EOF
+
+timeout 30 meshroom watch events myedr mysekoia
 
 ### 5. Meshroom down
 
@@ -138,4 +146,4 @@ meshroom down
 meshroom publish sekoia myedr search_threats
 
 # By the way, you can also play the trigger from command line via
-meshroom trigger search_threats mysekoia myedr
+# meshroom trigger search_threats mysekoia myedr

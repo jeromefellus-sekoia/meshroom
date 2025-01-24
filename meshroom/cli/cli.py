@@ -480,7 +480,8 @@ def produce(
             model.get_instance(instance)
         interaction.debug("Waiting for events on standard input...\n")
         for line in sys.stdin:
-            print(model.produce(topic, instance, dst_instance, data=line.strip(), mode=mode))
+            if line.strip():
+                print(model.produce(topic, instance, dst_instance, data=line.strip(), mode=mode))
     except ValueError as e:
         error(e, debug=debug)
         exit(1)

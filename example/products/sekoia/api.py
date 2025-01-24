@@ -326,7 +326,7 @@ class SekoiaAPI(Session):
         return requests.post(
             url,
             json={
-                "jsons": [message],
+                "json": message,
                 "intake_key": intake_key,
             },
         ).text
