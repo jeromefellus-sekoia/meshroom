@@ -16,6 +16,8 @@
 
 A command-line tool to build and manage Cybersecurity Mesh Architectures (CSMA), initiated by the OXA project.
 
+See [presentation slides](https://jeromefellus-sekoia.github.io/meshroom/presentation-slides.pdf) for in-depth introduction, and [https://jeromefellus-sekoia.github.io/meshroom](https://jeromefellus-sekoia.github.io/meshroom) for public documentation.
+
 I'm python-based, install me via pip using
 
 ```bash
