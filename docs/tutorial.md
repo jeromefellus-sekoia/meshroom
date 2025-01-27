@@ -191,7 +191,7 @@ which should now succeed !
 meshroom list instances
 meshroom list plugs
 ```
-should then show 2 instances and 1 plug connecting them.
+should then show 2 instances and 2 plugs connecting them.
 
 We're done with the mesh creation part of this tutorial, it's now time to give it life...
 
