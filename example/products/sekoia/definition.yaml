@@ -1,9 +1,18 @@
 name: sekoia
 tags: []
-config:
+settings:
   - name: API_KEY
     secret: true
-  - name: API_URL
-    default: https://api.sekoia.io
   - name: region
     default: FRA1
+executes:
+  actions:
+      - action_id:
+        params:
+  workflow:
+      - playbook_id:
+        context:
+          alert_uuid
+consumes:
+  events:
+    - {}

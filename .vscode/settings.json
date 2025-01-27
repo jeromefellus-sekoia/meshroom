@@ -3,5 +3,9 @@
         ".mypy_cache": true,
         ".vscode": true,
         "**/__pycache__": true
-    }
+    },
+    "search.exclude": {
+        "/tests/e2e/data": true
+    },
+    "makefile.configureOnOpen": false
 }

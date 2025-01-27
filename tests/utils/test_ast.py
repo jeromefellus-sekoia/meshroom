@@ -28,8 +28,6 @@ def myfunc(param):
 
     f.decorate(_the_decorator, arg=1, kwarg=2)
 
-    print(str(ast))
-
     assert (
         str(ast)
         == """

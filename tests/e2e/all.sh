@@ -1,15 +1,10 @@
 #!/bin/bash
-set -x
 
-cd $(dirname $0)/../..
+SCRIPT_DIR=$(dirname "$0")
+cd $SCRIPT_DIR
+SCRIPTS=$(find . -maxdepth 1 -name '*.sh' ! -name 'all.sh' | sort)
 
-
-rm -rf tests/e2e/data
-
-meshroom init tests/e2e/data
-
-# Simulate a vendor who defines the Sekoia product
-cp -rf example/* tests/e2e/data
-
-cd tests/e2e/data
-meshroom pull sekoia
+for SCRIPT in $SCRIPTS; {
+    echo "Executing $SCRIPT..."
+    bash "$SCRIPT" -f
+}

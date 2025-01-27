@@ -40,7 +40,7 @@ class AST:
                 for alias in node.names:
                     if alias.name == name:
                         return True
-            elif isinstance(node, ast.ImportFrom) and node.module == name:
+            elif isinstance(node, ast.ImportFrom) and (name in [n.name for n in node.names] or name == node.module):
                 return True
         return False
 
@@ -97,7 +97,7 @@ class Function:
         self.ast = ast
         self.func = func
 
-    def decorate(self, decorator: Callable, *decorator_args, exclude_none: bool = True, **decorator_kwargs):
+    def decorate(self, decorator: Callable, *decorator_args, exclude_none: bool = True, replace: bool = True, **decorator_kwargs):
         """Decorate the function with the given decorator, called with the given arguments and keyword arguments"""
         d: ast.Call = ast.parse(f"{decorator.__name__}()").body[0].value
         for k, v in decorator_kwargs.items():
@@ -106,8 +106,18 @@ class Function:
                 d.keywords.append(keyword)
         for arg in decorator_args:
             d.args.append(ast.Constant(value=arg))
+
+        if replace:
+            self.func.decorator_list.clear()
+
         self.func.decorator_list.insert(0, d)
 
         self.ast.add_import(decorator, exist_ok=True)
 
         return self
+
+
+def adapt_kwargs_to_signature(func: Callable, **kwargs):
+    """Adapt kwargs to a function signature"""
+    sig = inspect.signature(func)
+    return {k: v for k, v in kwargs.items() if k in sig.parameters}

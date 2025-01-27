@@ -1,14 +1,13 @@
 import os
 from pathlib import Path
 import shutil
-from subprocess import check_call
-import tomllib
+import sys
 import importlib.util
 from typing import Iterable
 from pydantic import BaseModel
 from tabulate import tabulate as _tabulate
 
-ROOT_DIR = Path(os.path.dirname(__file__))
+ROOT_DIR = Path(__file__).resolve().parent
 UI_DIR = ROOT_DIR / ".." / "dist"
 
 
@@ -21,23 +20,20 @@ def read_file(directory: str, filename: str) -> str:
         return ""
 
 
-def read_toml(directory: Path, filename: str) -> dict:
-    """Read a TOML file's content or return empty dict"""
-    try:
-        with open(directory / filename) as f:
-            return tomllib.load(f)
-    except Exception:
-        return {}
-
-
-VERSION = read_toml(ROOT_DIR / "..", "pyproject.toml").get("version", "0.0.0")
-
-
 def tabulate(
     data,
     headers: Iterable[str] | None = None,
     formatters: dict | None = None,
 ):
+    columns = []
+    for h in headers:
+        if isinstance(h, dict):
+            columns.append(list(h.keys())[0])
+        elif not isinstance(h, str):
+            columns.append(h[0])
+        else:
+            columns.append(h)
+
     def _format(x):
         for t, f in (formatters or {}).items():
             if isinstance(x, t):
@@ -52,43 +48,56 @@ def tabulate(
             return f"{x}"
         return x
 
+    def _field(x, h: str | dict | tuple):
+        if isinstance(h, dict):
+            key = list(h.values())[0]
+        elif not isinstance(h, str):
+            key = h[-1]
+        else:
+            key = h.lower().replace(" ", "_")
+
+        if isinstance(x, BaseModel):
+            if callable(key):
+                return key(x)
+            v = getattr(x, key, None)
+            if callable(v):
+                return v()
+            return v
+        if isinstance(x, dict):
+            return x.get(key)
+        return x
+
     out = []
     for i in data:
         if isinstance(i, BaseModel):
-            out.append([_format(getattr(i, h.lower().replace(" ", "_"), None)) for h in headers] if headers else i.model_dump())
+            out.append([_format(_field(i, h)) for h in headers] if headers else i.model_dump())
         elif isinstance(i, dict):
-            out.append([_format(i.get(h.lower().replace(" ", "_"))) for h in headers] if headers else i)
+            out.append([_format(_field(i, h)) for h in headers] if headers else i)
         else:
             out.append(i)
-    return _tabulate(out, headers=headers or "keys", tablefmt="rounded_outline")
+    return _tabulate(out, headers=columns or "keys", tablefmt="rounded_outline")
 
 
-def git_pull(url: str, path: Path):
-    if path.is_dir() and (path / ".git").is_dir():
-        check_call(["git", "pull"], cwd=path)
-    else:
-        check_call(["git", "clone", url, path])
-
-
-def import_module(path: Path | str):
+def import_module(path: Path | str, package_dir: Path | str | None = ""):
     path = Path(path)
+    package_dir = package_dir or path.parent
     if path.is_file():
-        spec = importlib.util.spec_from_file_location(path.stem, path)
-        pull = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(pull)
-        return pull
+        name = path.stem
+        old_sys_path = sys.path.copy()
+        if package_dir:
+            name = path.relative_to(Path(package_dir).parent).with_suffix("").as_posix().replace("/", ".")
+            sys.path.insert(0, Path(package_dir).parent.as_posix())
+        spec = importlib.util.spec_from_file_location(name, str(Path(path).resolve()))
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        sys.path = old_sys_path
+        return m
     return None
 
 
-def list_functions_from_module(path: Path | str, startswith: str = ""):
-    if module := import_module(path):
-        return [getattr(module, func) for func in dir(module) if (not startswith or func.startswith("pull_")) and callable(getattr(module, func))]
-    return []
-
-
-def cp_rf(source_path: Path | str, dst_path: Path | str):
-    """Force-copy the source_path to the dst_path, removing all existing files in the dst_path"""
-    dst_path = Path(dst_path)
-    dst_path.mkdir(parents=True, exist_ok=True)
-    shutil.rmtree(dst_path, ignore_errors=True)
-    shutil.copytree(source_path, dst_path)
+def overwrite_directory(src_dir: Path | str, dst_dir: Path | str):
+    """Force-copy the :src_dir to the :dst_dir, removing all existing files in the :dst_dir"""
+    dst_dir = Path(dst_dir)
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    shutil.rmtree(dst_dir, ignore_errors=True)
+    shutil.copytree(src_dir, dst_dir)
