@@ -151,9 +151,9 @@ meshroom list instances
 <p>which confirms we have no products and no instances yet.</p>
 <h3 id="1-gather-knowledge-about-existing-products">1. Gather knowledge about existing products<a class="headerlink" href="#1-gather-knowledge-about-existing-products" title="Permanent link">&para;</a></h3>
 <p>In Meshroom's spirit, users may have already shared products definitions via, say, github.com, so you can browse public shared meshroom repos for products of interest to build your mesh.</p>
-<p>Imagine we want to incorporate a Sekoia.io SOC platform tenant into our mesh. We can leverage existing definitions from <a href="https://github.com/jeromefellus-sekoia/meshroom/tree/master/example/products/sekoia">https://github.com/jeromefellus-sekoia/meshroom/tree/master/example/products/sekoia</a>, by simply copying the subdirectory to our project's <code>products/</code> folder:</p>
+<p>Imagine we want to incorporate a Sekoia.io SOC platform tenant into our mesh. We can leverage existing definitions from <a href="https://github.com/opencybersecurityalliance/meshroom/tree/master/products/sekoia">https://github.com/opencybersecurityalliance/meshroom/tree/master/products/sekoia</a>, by simply copying the subdirectory to our project's <code>products/</code> folder:</p>
 <pre><code class="language-bash">mkdir -p tmp
-curl -L -o tmp.tar.gz https://github.com/jeromefellus-sekoia/meshroom/tarball/master
+curl -L -o tmp.tar.gz https://github.com/opencybersecurityalliance/meshroom/tarball/master
 tar -xzf tmp.tar.gz -C tmp
 mv tmp/*/example/products/sekoia products/sekoia
 rm -rf tmp tmp.tar.gz
@@ -166,7 +166,7 @@ rm -rf tmp tmp.tar.gz
 </code></pre>
 <p>now shows many products available for instanciation.</p>
 <h3 id="2-integrate-your-product">2. Integrate your product<a class="headerlink" href="#2-integrate-your-product" title="Permanent link">&para;</a></h3>
-<p>This tutorial assumes we're a vendor of a new product that didn't get a meshroom definition yet. So let's create it from scratch, or better, using one of the provided product capabilities templates, found under <a href="https://github.com/jeromefellus-sekoia/meshroom/tree/master/meshroom/templates/products">https://github.com/jeromefellus-sekoia/meshroom/tree/master/meshroom/templates/products</a></p>
+<p>This tutorial assumes we're a vendor of a new product that didn't get a meshroom definition yet. So let's create it from scratch, or better, using one of the provided product capabilities templates, found under <a href="https://github.com/opencybersecurityalliance/meshroom/tree/master/meshroom/templates/products">https://github.com/opencybersecurityalliance/meshroom/tree/master/meshroom/templates/products</a></p>
 <pre><code class="language-bash">meshroom create product myedr --from edr
 </code></pre>
 <p>This created and scaffolded the folder <code>products/myedr</code>, with a draft definition.yaml and several other files. Of course, this is not enough to fully express myedr's full interop surface, but can be considered as a good starting point:</p>
