@@ -6,9 +6,9 @@
 
 
 
-![release](https://img.shields.io/github/v/release/jeromefellus-sekoia/meshroom?)
-![build](https://img.shields.io/github/actions/workflow/status/jeromefellus-sekoia/meshroom/pytest.yml?branch=master)
-![MIT license](https://img.shields.io/github/license/jeromefellus-sekoia/meshroom)
+![release](https://img.shields.io/github/v/release/opencybersecurityalliance/meshroom?)
+![build](https://img.shields.io/github/actions/workflow/status/opencybersecurityalliance/meshroom/pytest.yml?branch=master)
+![MIT license](https://img.shields.io/github/license/opencybersecurityalliance/meshroom)
 [![Python 3.10](https://img.shields.io/badge/python-3.10-blue.svg)](https://www.python.org/downloads/release/python-3100/)
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/release/python-3120/)
@@ -16,7 +16,7 @@
 
 A command-line tool to build and manage Cybersecurity Mesh Architectures (CSMA), initiated by the OXA project.
 
-See [presentation slides](https://jeromefellus-sekoia.github.io/meshroom/presentation-slides.pdf) for in-depth introduction, and [https://jeromefellus-sekoia.github.io/meshroom](https://jeromefellus-sekoia.github.io/meshroom) for public documentation.
+See [presentation slides](https://opencybersecurityalliance.github.io/meshroom/presentation-slides.pdf) for in-depth introduction, and [https://opencybersecurityalliance.github.io/meshroom](https://opencybersecurityalliance.github.io/meshroom) for public documentation.
 
 I'm python-based, install me via pip using
 

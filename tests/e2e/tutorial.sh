@@ -20,9 +20,9 @@ meshroom list instances
 
 ### 1. Gather knowledge about existing products
 
-# Imagine we want to incorporate a Sekoia.io SOC platform tenant into our mesh. We can leverage existing definitions from [https://github.com/jeromefellus-sekoia/meshroom/tree/master/example/products/sekoia](https://github.com/jeromefellus-sekoia/meshroom/tree/master/example/products/sekoia), by simply copying the subdirectory to our project's `products/` folder:
+# Imagine we want to incorporate a Sekoia.io SOC platform tenant into our mesh. We can leverage existing definitions from [https://github.com/opencybersecurityalliance/meshroom/tree/master/products/sekoia](https://github.com/opencybersecurityalliance/meshroom/tree/master/example/products/sekoia), by simply copying the subdirectory to our project's `products/` folder:
 mkdir -p tmp
-curl -L -o tmp.tar.gz https://github.com/jeromefellus-sekoia/meshroom/tarball/master
+curl -L -o tmp.tar.gz https://github.com/opencybersecurityalliance/meshroom/tarball/master
 tar -xzf tmp.tar.gz -C tmp
 mv tmp/*/example/products/sekoia products/sekoia
 rm -rf tmp tmp.tar.gz
@@ -37,7 +37,7 @@ meshroom list products
 
 rm -rf products/myedr
 
-# This tutorial assumes we're a vendor of a new product that didn't get a meshroom definition yet. So let's create it from scratch, or better, using one of the provided product capabilities templates, found under [https://github.com/jeromefellus-sekoia/meshroom/tree/master/meshroom/templates/products](https://github.com/jeromefellus-sekoia/meshroom/tree/master/meshroom/templates/products)
+# This tutorial assumes we're a vendor of a new product that didn't get a meshroom definition yet. So let's create it from scratch, or better, using one of the provided product capabilities templates, found under [https://github.com/opencybersecurityalliance/meshroom/tree/master/meshroom/templates/products](https://github.com/opencybersecurityalliance/meshroom/tree/master/meshroom/templates/products)
 meshroom create product myedr --from edr
 
 cat >> products/myedr/definition.yaml <<EOF
@@ -121,7 +121,7 @@ meshroom list plugs
 # Let's commit our work to some git repository
 git add .
 git commit -a -m "Initial commit"
-git remote add origin git@github.com:jeromefellus-sekoia/test-meshroom-custom-integration1.git
+git remote add origin git@github.com:opencybersecurityalliance/test-meshroom-custom-integration1.git
 git branch
 git push -f -u origin master
 

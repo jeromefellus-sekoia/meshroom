@@ -18,7 +18,7 @@ def create_intake_key(integration: Integration, plug: Plug, instance: Instance):
     )
 
     if not getattr(integration, "intake_format_uuid", None):
-        raise ValueError("Intakes can't be created without an intake format, see example/products/sekoia/templates/event_consumer for inspiration")
+        raise ValueError("Intakes can't be created without an intake format, see products/sekoia/templates/event_consumer for inspiration")
 
     intake_name = integration.target_product.replace("_", " ")
 
@@ -28,7 +28,7 @@ def create_intake_key(integration: Integration, plug: Plug, instance: Instance):
     # Pull intakes require an automation connector
     if integration.mode == "pull":
         if not getattr(integration, "automation_module_uuid", None):
-            raise ValueError("Pull intakes require a connector, see example/products/sekoia/templates/event_consumer_pull for inspiration")
+            raise ValueError("Pull intakes require a connector, see products/sekoia/templates/event_consumer_pull for inspiration")
 
         # Find or create a suitable module configuration
         module_configuration = plug.dst_config.get("module_configuration") or {}

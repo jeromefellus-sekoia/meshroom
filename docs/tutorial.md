@@ -31,11 +31,11 @@ which confirms we have no products and no instances yet.
 
 In Meshroom's spirit, users may have already shared products definitions via, say, github.com, so you can browse public shared meshroom repos for products of interest to build your mesh.
 
-Imagine we want to incorporate a Sekoia.io SOC platform tenant into our mesh. We can leverage existing definitions from [https://github.com/jeromefellus-sekoia/meshroom/tree/master/example/products/sekoia](https://github.com/jeromefellus-sekoia/meshroom/tree/master/example/products/sekoia), by simply copying the subdirectory to our project's `products/` folder:
+Imagine we want to incorporate a Sekoia.io SOC platform tenant into our mesh. We can leverage existing definitions from [https://github.com/opencybersecurityalliance/meshroom/tree/master/products/sekoia](https://github.com/opencybersecurityalliance/meshroom/tree/master/products/sekoia), by simply copying the subdirectory to our project's `products/` folder:
 
 ```bash
 mkdir -p tmp
-curl -L -o tmp.tar.gz https://github.com/jeromefellus-sekoia/meshroom/tarball/master
+curl -L -o tmp.tar.gz https://github.com/opencybersecurityalliance/meshroom/tarball/master
 tar -xzf tmp.tar.gz -C tmp
 mv tmp/*/example/products/sekoia products/sekoia
 rm -rf tmp tmp.tar.gz
@@ -57,7 +57,7 @@ now shows many products available for instanciation.
 
 ### 2. Integrate your product
 
-This tutorial assumes we're a vendor of a new product that didn't get a meshroom definition yet. So let's create it from scratch, or better, using one of the provided product capabilities templates, found under [https://github.com/jeromefellus-sekoia/meshroom/tree/master/meshroom/templates/products](https://github.com/jeromefellus-sekoia/meshroom/tree/master/meshroom/templates/products)
+This tutorial assumes we're a vendor of a new product that didn't get a meshroom definition yet. So let's create it from scratch, or better, using one of the provided product capabilities templates, found under [https://github.com/opencybersecurityalliance/meshroom/tree/master/meshroom/templates/products](https://github.com/opencybersecurityalliance/meshroom/tree/master/meshroom/templates/products)
 
 ```bash
 meshroom create product myedr --from edr
